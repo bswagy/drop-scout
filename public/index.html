@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drop Scout</title>
+<meta name="description" content="Taste intelligence for small streetwear brands. Powered by Qloo.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f4f1ea; --ink:#141414; --muted:#6b675f; --line:#d8d2c4; --card:#fffdf8;
+    --accent:#ff4d1a; --accent-ink:#fff; --ok:#1f7a4d; --warn:#a15c00;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#111; --ink:#f1ede4; --muted:#9a958b; --line:#2b2925; --card:#191816; --accent:#ff5a2a; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 Inter,system-ui,sans-serif;}
+  .wrap{max-width:980px;margin:0 auto;padding:28px 16px 64px}
+  header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:28px}
+  .logo{white-space:nowrap;font-family:'Archivo Black',sans-serif;font-size:22px;letter-spacing:.5px;background:var(--ink);color:var(--bg);padding:2px 10px}
+  .powered{text-align:right;font:12px 'JetBrains Mono',monospace;color:var(--muted)}
+  h1{font-family:'Archivo Black',sans-serif;font-size:clamp(34px,6vw,58px);line-height:.98;margin:0 0 14px;letter-spacing:-.5px}
+  h1 em{font-style:normal;color:var(--accent)}
+  .lede{color:var(--muted);max-width:620px;margin:0 0 26px}
+  form{background:var(--card);border:1px solid var(--line);padding:18px}
+  label{display:block;font:600 12px 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+  textarea{width:100%;min-height:110px;resize:vertical;border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:12px;font:15px/1.5 Inter,sans-serif}
+  textarea:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .row{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:12px}
+  button{font-family:'Archivo Black',sans-serif;font-size:16px;letter-spacing:.3px;background:var(--accent);color:var(--accent-ink);border:0;padding:12px 22px;cursor:pointer}
+  button:disabled{opacity:.6;cursor:progress}
+  .chip{font:12px 'JetBrains Mono',monospace;border:1px solid var(--line);background:transparent;color:var(--muted);padding:6px 10px;cursor:pointer}
+  .chip:hover{color:var(--ink);border-color:var(--ink)}
+  .grid{display:grid;grid-template-columns:1fr 300px;gap:18px;margin-top:22px}
+  @media (max-width:800px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);padding:20px}
+  .report h2{font-family:'Archivo Black',sans-serif;font-size:17px;margin:22px 0 6px;display:inline-block;background:var(--ink);color:var(--bg);padding:1px 8px}
+  .report h2:first-child{margin-top:0}
+  .report ul{padding-left:20px;margin:6px 0}
+  .report p{margin:6px 0}
+  .report em{color:var(--muted)}
+  .trail h3{font:600 12px 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.08em;margin:0 0 10px}
+  .step{border-top:1px solid var(--line);padding:9px 0;font:12.5px/1.45 'JetBrains Mono',monospace}
+  .step b{display:block;color:var(--ink)}
+  .step .s{color:var(--muted)}
+  .badge{display:inline-block;font-size:11px;padding:0 6px;margin-left:4px;border:1px solid currentColor}
+  .ok{color:var(--ok)} .warn{color:var(--warn)}
+  .status{font:13px 'JetBrains Mono',monospace;color:var(--muted)}
+  .err{color:#c0262d}
+  .empty{color:var(--muted);font-size:14px}
+  footer{margin-top:40px;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="logo">DROP SCOUT</span>
+    <span class="powered">taste data by Qloo · agent by Gemini</span>
+  </header>
+
+  <h1>Know who your<br>drop is <em>for.</em></h1>
+  <p class="lede">Describe your brand. Drop Scout's agent queries Qloo's taste graph to find the artists, brands and cities your audience already loves, then turns that into what to drop next and where to sell it.</p>
+
+  <form id="f">
+    <label for="brand">Your brand</label>
+    <textarea id="brand" maxlength="1200" required>Smacked: an independent streetwear brand from Humboldt County, California. Bold red box logo, a star "S" emblem, oversized hoodies, graphic tees, trucker hats and a new piped nylon tracksuit. West Coast hip-hop energy, skate and street culture.</textarea>
+    <div class="row">
+      <button id="go" type="submit">Scout my audience</button>
+      <button class="chip" type="button" data-ex="A Brooklyn knitwear label making chunky hand-dyed beanies and cardigans, cozy indie-folk vibe, sold at farmers markets.">Try: knitwear label</button>
+      <button class="chip" type="button" data-ex="A Miami surf and skate brand with neon 80s graphics, boardshorts and tie-dye tees, synthwave and reggaeton playlists.">Try: surf brand</button>
+      <span class="status" id="status"></span>
+    </div>
+  </form>
+
+  <div class="grid">
+    <section class="card report" id="report"><p class="empty">Your brief shows up here. A scout takes about 20–60 seconds while the agent runs its Qloo queries.</p></section>
+    <aside class="card trail">
+      <h3>Evidence trail</h3>
+      <div id="steps"><p class="empty">Every Qloo call the agent makes is listed here, so you can see where each claim comes from.</p></div>
+    </aside>
+  </div>
+
+  <footer>Qloo results describe aggregate cultural affinities, not individual people. Drop Scout sends no personal data to Qloo.</footer>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+// Small Markdown renderer for headings, lists, bold, italics, paragraphs.
+function md(src){
+  const inline = (t) => esc(t).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/(^|[^*])\*(?!\s)(.+?)\*(?!\*)/g, "$1<em>$2</em>").replace(/_(.+?)_/g, "<em>$1</em>");
+  let html = "", inList = false;
+  for (const raw of src.split("\n")){
+    const line = raw.trimEnd();
+    const li = line.match(/^\s*[-*•]\s+(.*)/) || line.match(/^\s*\d+[.)]\s+(.*)/);
+    if (li){ if (!inList){ html += "<ul>"; inList = true; } html += `<li>${inline(li[1])}</li>`; continue; }
+    if (inList){ html += "</ul>"; inList = false; }
+    const h = line.match(/^#{1,4}\s+(.*)/);
+    if (h) html += `<h2>${inline(h[1])}</h2>`;
+    else if (line.trim()) html += `<p>${inline(line)}</p>`;
+  }
+  return html + (inList ? "</ul>" : "");
+}
+
+function renderSteps(steps){
+  if (!steps?.length){ $("#steps").innerHTML = '<p class="empty">No Qloo calls were made.</p>'; return; }
+  $("#steps").innerHTML = steps.map((s, i) => {
+    const cls = s.status === "ok" ? "ok" : "warn";
+    const args = Object.entries(s.args || {}).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(", ");
+    return `<div class="step"><b>${i + 1}. ${esc(s.tool)}<span class="badge ${cls}">${esc(s.status)}${s.count ? " · " + esc(s.count) : ""}</span></b><span class="s">${esc(args).slice(0, 220)}</span></div>`;
+  }).join("");
+}
+
+document.querySelectorAll("[data-ex]").forEach((b) => b.addEventListener("click", () => { $("#brand").value = b.dataset.ex; $("#brand").focus(); }));
+
+const phases = ["Reading your brand…", "Resolving tags in Qloo…", "Finding what your audience loves…", "Checking where the taste is popular…", "Writing your brief…"];
+
+$("#f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const go = $("#go"); go.disabled = true;
+  let i = 0; $("#status").textContent = phases[0];
+  const tick = setInterval(() => { i = Math.min(i + 1, phases.length - 1); $("#status").textContent = phases[i]; }, 7000);
+  $("#report").innerHTML = '<p class="empty">Scouting…</p>';
+  $("#steps").innerHTML = '<p class="empty">Waiting for the agent…</p>';
+  try {
+    const r = await fetch("/api/scout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brand: $("#brand").value }) });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.error || "Something went wrong.");
+    $("#report").innerHTML = md(d.report || "No brief was produced.");
+    renderSteps(d.steps);
+    $("#status").textContent = d.cached ? "Done (cached result)" : "Done";
+  } catch (err) {
+    $("#report").innerHTML = `<p class="err">${esc(err.message)}</p>`;
+    $("#steps").innerHTML = "";
+    $("#status").textContent = "";
+  } finally {
+    clearInterval(tick); go.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
