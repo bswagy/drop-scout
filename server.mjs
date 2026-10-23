@@ -20,6 +20,9 @@ const MAX_TOOL_ROUNDS = 8;
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 process.env.QLOO_HOME ||= path.join(os.tmpdir(), "qloo-home");
+// Hackathon keys only work against the hackathon API.
+process.env.QLOO_BASE_URL ||= "https://hackathon.api.qloo.com";
+process.env.QLOO_TRUSTED_BASE_URL ||= process.env.QLOO_BASE_URL;
 
 // ---------- Qloo MCP ----------
 
