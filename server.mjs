@@ -100,32 +100,56 @@ const functionDeclarations = () => qlooTools.map((t) => ({
   parameters: sanitizeSchema(t.inputSchema || { type: "object", properties: {} }),
 }));
 
-async function gemini(contents, { tools = true } = {}) {
+// Models to try, in order. Busy (503), rate-limited (429) or missing (404) models fall through to the next.
+const GEMINI_MODELS = [...new Set([GEMINI_MODEL, ...(process.env.GEMINI_FALLBACKS || "gemini-2.5-flash,gemini-flash-lite-latest").split(",").map((m) => m.trim()).filter(Boolean)])];
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function geminiOnce(model, body) {
   const t0 = Date.now();
+  let r;
+  try {
+    r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY || "" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+    });
+  } catch (e) {
+    console.error(`[step] gemini ${model} network/timeout: ${e.name}`);
+    return { retry: true, status: e.name === "TimeoutError" ? 504 : 502 };
+  }
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    console.error(`[step] gemini ${model} error ${r.status}: ${String(data?.error?.message).slice(0, 160)}`);
+    return { retry: [429, 500, 503, 504, 404].includes(r.status), status: r.status };
+  }
+  const content = data.candidates?.[0]?.content ?? { role: "model", parts: [] };
+  const calls = (content.parts || []).filter((p) => p.functionCall).map((p) => p.functionCall.name);
+  console.log(`[step] gemini ${model} in ${Date.now() - t0}ms -> ${calls.length ? "calls " + calls.join(", ") : "text"} (finish ${data.candidates?.[0]?.finishReason ?? "?"})`);
+  return { content };
+}
+
+// `run` keeps one model per scout once it works, so the conversation stays on the same model.
+async function gemini(contents, { tools = true, run = {} } = {}) {
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
     contents,
     generationConfig: { temperature: 0.4 },
   };
   if (tools) body.tools = [{ functionDeclarations: functionDeclarations() }];
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY || "" },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
-  }).catch((e) => {
-    console.error("Gemini request failed:", e.name, e.message);
-    throw new PublicError(e.name === "TimeoutError" ? "The AI model took too long. Try again." : "Could not reach the AI model.");
-  });
-  const data = await r.json().catch(() => ({}));
-  if (!r.ok) {
-    console.error("Gemini error", r.status, data?.error?.message);
-    throw new PublicError(r.status === 429 ? "The AI model is rate-limited right now. Try again in a minute." : "The AI model request failed.");
+  const order = run.model ? [run.model, ...GEMINI_MODELS.filter((m) => m !== run.model)] : GEMINI_MODELS;
+  let last = 0;
+  for (const model of order) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await geminiOnce(model, body);
+      if (res.content) { run.model = model; return res.content; }
+      last = res.status;
+      if (!res.retry) throw new PublicError("The AI model request failed.");
+      if (res.status === 404) break;          // model name not available: next model
+      if (attempt === 0) await sleep(1500);   // brief backoff, then one retry
+    }
   }
-  const content = data.candidates?.[0]?.content ?? { role: "model", parts: [] };
-  const calls = (content.parts || []).filter((p) => p.functionCall).map((p) => p.functionCall.name);
-  console.log(`[step] gemini ${GEMINI_MODEL} in ${Date.now() - t0}ms -> ${calls.length ? "calls " + calls.join(", ") : "text"} (finish ${data.candidates?.[0]?.finishReason ?? "?"})`);
-  return content;
+  throw new PublicError(last === 429 ? "The AI model is rate-limited right now. Try again in a minute." : "The AI model is busy right now. Try again in a minute.");
 }
 
 const SYSTEM_PROMPT = `You are Drop Scout, a taste-intelligence analyst for small independent streetwear and merch brands.
@@ -157,15 +181,16 @@ async function runScout(brand) {
   const contents = [{ role: "user", parts: [{ text: `Brand description:\n${brand}` }] }];
 
   const started = Date.now();
+  const run = {};
   console.log(`[scout] start (${brand.length} chars)`);
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     if (Date.now() - started > SCOUT_BUDGET_MS) { console.log("[scout] time budget reached, writing up"); break; }
-    const msg = await gemini(contents);
+    const msg = await gemini(contents, { run });
     contents.push(msg);
     const calls = (msg.parts || []).filter((p) => p.functionCall);
     if (!calls.length) {
       const text = (msg.parts || []).map((p) => p.text || "").join("").trim();
-      if (text) { console.log(`[scout] done in ${Date.now() - started}ms, ${steps.length} qloo calls`); return { report: text, steps }; }
+      if (text) { console.log(`[scout] done in ${Date.now() - started}ms on ${run.model}, ${steps.length} qloo calls`); return { report: text, steps, model: run.model }; }
       break;
     }
     const responses = [];
@@ -187,8 +212,8 @@ async function runScout(brand) {
 
   // Out of rounds or empty answer: ask for the write-up without tools.
   contents.push({ role: "user", parts: [{ text: "Write the final brief now from the evidence above, in the required format." }] });
-  const final = await gemini(contents, { tools: false });
-  return { report: (final.parts || []).map((p) => p.text || "").join("").trim(), steps };
+  const final = await gemini(contents, { tools: false, run });
+  return { report: (final.parts || []).map((p) => p.text || "").join("").trim(), steps, model: run.model };
 }
 
 // ---------- HTTP ----------
