@@ -18,7 +18,7 @@ const PORT = Number(process.env.PORT || 3000);
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
 const MAX_TOOL_ROUNDS = 8;
 const QLOO_TIMEOUT_MS = 30_000;
-const GEMINI_TIMEOUT_MS = 45_000;
+const GEMINI_TIMEOUT_MS = 25_000;
 const SCOUT_BUDGET_MS = 110_000;
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
@@ -101,7 +101,7 @@ const functionDeclarations = () => qlooTools.map((t) => ({
 }));
 
 // Models to try, in order. Busy (503), rate-limited (429) or missing (404) models fall through to the next.
-const GEMINI_MODELS = [...new Set([GEMINI_MODEL, ...(process.env.GEMINI_FALLBACKS || "gemini-2.5-flash,gemini-flash-lite-latest").split(",").map((m) => m.trim()).filter(Boolean)])];
+const GEMINI_MODELS = [...new Set([GEMINI_MODEL, ...(process.env.GEMINI_FALLBACKS || "gemini-3.8-flash,gemini-flash-lite-latest").split(",").map((m) => m.trim()).filter(Boolean)])];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function geminiOnce(model, body) {
