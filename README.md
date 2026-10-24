@@ -35,7 +35,7 @@ npm run check                # connects to Qloo and lists tools
 npm start                    # http://localhost:3000
 ```
 
-Optional: `GEMINI_MODEL` (default `gemini-2.5-flash`), `PORT`, and `QLOO_BASE_URL` / `QLOO_TRUSTED_BASE_URL` (both default to the hackathon API, `https://hackathon.api.qloo.com`).
+Optional: `GEMINI_MODEL` (default `gemini-flash-latest`), `PORT`, and `QLOO_BASE_URL` / `QLOO_TRUSTED_BASE_URL` (both default to the hackathon API, `https://hackathon.api.qloo.com`).
 
 ## Deploy
 
