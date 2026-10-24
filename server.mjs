@@ -17,6 +17,9 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT || 3000);
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
 const MAX_TOOL_ROUNDS = 8;
+const QLOO_TIMEOUT_MS = 30_000;
+const GEMINI_TIMEOUT_MS = 45_000;
+const SCOUT_BUDGET_MS = 110_000;
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
 process.env.QLOO_HOME ||= path.join(os.tmpdir(), "qloo-home");
@@ -34,7 +37,11 @@ let qlooTools = [];   // tool list from listTools()
 
 async function connectQloo() {
   const client = new Client({ name: "drop-scout", version: "0.1.0" });
-  const transport = new StdioClientTransport({ command: QLOO_CMD, args: ["mcp"], env: process.env });
+  const transport = new StdioClientTransport({ command: QLOO_CMD, args: ["mcp"], env: process.env, stderr: "pipe" });
+  transport.stderr?.on("data", (d) => {
+    const line = String(d).replace(/[A-Za-z0-9_\-]{32,}/g, "[redacted]").trim();
+    if (line) console.error("[qloo]", line.slice(0, 500));
+  });
   await client.connect(transport);
   const { tools } = await client.listTools();
   qloo = client;
@@ -42,14 +49,18 @@ async function connectQloo() {
   const caps = await client.callTool({ name: "qloo_capabilities", arguments: {} });
   const ready = Boolean(caps.structuredContent?.adapter?.ready);
   console.log(`qloo mcp connected: ${tools.length} tools, credential ${ready ? "ready" : "MISSING"}`);
+  console.log("qloo tools:", tools.map((t) => t.name).join(", "));
   transport.onclose = () => { qloo = null; console.error("qloo mcp closed; will reconnect on next request"); };
   return ready;
 }
 
 async function callQloo(name, args) {
   if (!qloo) await connectQloo();
-  const res = await qloo.callTool({ name, arguments: args ?? {} });
+  const t0 = Date.now();
+  const res = await qloo.callTool({ name, arguments: args ?? {} }, undefined, { timeout: QLOO_TIMEOUT_MS });
   const env = res.structuredContent ?? { status: "error", summary: "No structured result", results: [] };
+  console.log(`[step] qloo ${name} -> ${env.status} (${env.result_count ?? (env.results || []).length} results) in ${Date.now() - t0}ms`);
+  if (env.status === "error") console.log(`[step] qloo ${name} error: ${env.error?.code} ${String(env.summary).slice(0, 200)}`);
   return env;
 }
 
@@ -90,6 +101,7 @@ const functionDeclarations = () => qlooTools.map((t) => ({
 }));
 
 async function gemini(contents, { tools = true } = {}) {
+  const t0 = Date.now();
   const body = {
     systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
     contents,
@@ -100,13 +112,20 @@ async function gemini(contents, { tools = true } = {}) {
     method: "POST",
     headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY || "" },
     body: JSON.stringify(body),
+    signal: AbortSignal.timeout(GEMINI_TIMEOUT_MS),
+  }).catch((e) => {
+    console.error("Gemini request failed:", e.name, e.message);
+    throw new PublicError(e.name === "TimeoutError" ? "The AI model took too long. Try again." : "Could not reach the AI model.");
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) {
     console.error("Gemini error", r.status, data?.error?.message);
     throw new PublicError(r.status === 429 ? "The AI model is rate-limited right now. Try again in a minute." : "The AI model request failed.");
   }
-  return data.candidates?.[0]?.content ?? { role: "model", parts: [] };
+  const content = data.candidates?.[0]?.content ?? { role: "model", parts: [] };
+  const calls = (content.parts || []).filter((p) => p.functionCall).map((p) => p.functionCall.name);
+  console.log(`[step] gemini ${GEMINI_MODEL} in ${Date.now() - t0}ms -> ${calls.length ? "calls " + calls.join(", ") : "text"} (finish ${data.candidates?.[0]?.finishReason ?? "?"})`);
+  return content;
 }
 
 const SYSTEM_PROMPT = `You are Drop Scout, a taste-intelligence analyst for small independent streetwear and merch brands.
@@ -137,13 +156,16 @@ async function runScout(brand) {
   const steps = [];
   const contents = [{ role: "user", parts: [{ text: `Brand description:\n${brand}` }] }];
 
+  const started = Date.now();
+  console.log(`[scout] start (${brand.length} chars)`);
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    if (Date.now() - started > SCOUT_BUDGET_MS) { console.log("[scout] time budget reached, writing up"); break; }
     const msg = await gemini(contents);
     contents.push(msg);
     const calls = (msg.parts || []).filter((p) => p.functionCall);
     if (!calls.length) {
       const text = (msg.parts || []).map((p) => p.text || "").join("").trim();
-      if (text) return { report: text, steps };
+      if (text) { console.log(`[scout] done in ${Date.now() - started}ms, ${steps.length} qloo calls`); return { report: text, steps }; }
       break;
     }
     const responses = [];
