@@ -56,6 +56,21 @@
   .gp div{padding:8px 10px}
   .gp b{display:block;font-family:'Archivo Black',sans-serif;font-size:14px}
   .gp small{color:var(--muted);font:11px 'JetBrains Mono',monospace}
+  .shows{display:grid;gap:10px;margin:10px 0 4px}
+  .show{display:grid;grid-template-columns:52px 1fr;gap:12px;align-items:center;border:1px solid var(--line);border-radius:12px;padding:10px;background:var(--bg)}
+  .show .dt{display:grid;place-items:center;text-align:center;background:var(--accent);color:#fff;border-radius:10px;padding:6px 0;font:700 11px/1.1 'JetBrains Mono',monospace}
+  .show .dt b{display:block;font:20px 'Archivo Black',sans-serif}
+  .show h4{margin:0;font:700 14px/1.3 Inter,sans-serif}
+  .show .where{font-size:13px;color:var(--muted)}
+  .show .tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:5px}
+  .show .tag{font:700 11px 'JetBrains Mono',monospace;padding:2px 7px;border-radius:999px;background:var(--soft);color:var(--accent)}
+  .show .tag.hot{background:var(--accent);color:#fff}
+  .show .tag.fit{background:#e3f1e8;color:#1f7a4d}
+  .show .btns{grid-column:1/-1;display:flex;gap:8px}
+  .show .btns button,.show .btns a{flex:1;text-align:center;text-decoration:none;min-height:40px;display:grid;place-items:center}
+  .shows-h{font:600 12px 'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:12px}
+  .stage.text{aspect-ratio:auto;background:none;overflow:visible}
+  .stage.text textarea{width:100%;min-height:260px;border:1px solid var(--line);border-radius:12px;padding:12px;font:14px/1.5 Inter,sans-serif;background:var(--bg);color:var(--ink);resize:vertical}
 
   /* live progress */
   .live{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;display:none}
@@ -247,6 +262,7 @@ function renderBrief(src, entities = [], heat = []){
   loadCityPhotos();
   prefetchTracks();
   if (HEAT.length && $("#globe")) initGlobe();
+  loadShows();
   $("#againBtn").onclick = () => { $("#brand").focus(); $("#brand").select(); window.scrollTo({ top: $("#f").offsetTop - 12, behavior: "smooth" }); };
 }
 
@@ -311,7 +327,9 @@ function tilesFor(sec){
   const globe = type === "place" && HEAT.length ? '<div class="globe" id="globe"><span class="globe-tip">Qloo taste heat · tap a dot</span><button class="globe-back" id="globeBack" type="button">↺ Globe</button></div>' : "";
   if (!ENT.length) return globe;
   const text = sec.lines.join(" ").toLowerCase();
-  let picks = ENT.map((e, i) => ({ ...e, i })).filter((e) => e.type === type && text.includes(e.name.toLowerCase()));
+  const fold = (x) => String(x).toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+  const ftext = fold(text);
+  let picks = ENT.map((e, i) => ({ ...e, i })).filter((e) => e.type === type && ftext.includes(fold(e.name)));
   if (!picks.length && /tour|event/.test(t)) return "";
   if (!picks.length && type === "place") picks = ENT.map((e, i) => ({ ...e, i })).filter((e) => e.type === type).slice(0, 8);
   if (!picks.length) return globe;
@@ -378,12 +396,78 @@ function draw(){
   rafId = requestAnimationFrame(draw);
 }
 
+// ---- upcoming shows near Qloo hot spots + pop-up pitch drafts ----
+let SHOWS = [];
+const brandName = () => { const d = $("#brand").value.trim(); const m = d.match(/^([^:.,–-]{2,40})[:.,–-]/); return (m ? m[1] : d.split(/\s+/).slice(0, 3).join(" ")).trim(); };
+const fmtDate = (d) => { const x = new Date(d + "T12:00:00"); return isNaN(x) ? d : x.toLocaleDateString("en-US", { month: "short", day: "numeric" }); };
+async function loadShows(){
+  const sec = [...document.querySelectorAll(".sec")].find((a) => /tour|event/i.test(a.querySelector("h2")?.textContent || ""));
+  if (!sec) return;
+  const text = sec.textContent.toLowerCase();
+  const artists = ENT.filter((e) => e.type === "artist").sort((a, b) => (text.includes(b.name.toLowerCase()) - text.includes(a.name.toLowerCase())) || ((b.affinity || 0) - (a.affinity || 0))).slice(0, 6).map((e) => ({ name: e.name, affinity: e.affinity }));
+  if (!artists.length) return;
+  let d;
+  try { d = await (await fetch("/api/shows", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artists, heat: HEAT }) })).json(); } catch { return; }
+  SHOWS = d.shows || [];
+  if (!SHOWS.length || !document.body.contains(sec)) return;
+  sec.insertAdjacentHTML("beforeend", `<div class="shows-h">Upcoming shows · ${SHOWS.filter((s) => s.hot).length} in your hot spots</div><div class="shows">${SHOWS.map((s, i) => {
+    const pct = s.affinity ? Math.round(s.affinity * 100) : null;
+    return `<div class="show"><div class="dt">${esc(fmtDate(s.date).split(" ")[0]).toUpperCase()}<b>${esc(fmtDate(s.date).split(" ")[1] || "")}</b></div><div><h4>${esc(s.artist)}</h4><div class="where">${esc(s.venue)}${s.city ? " · " + esc(s.city) + (s.state ? ", " + esc(s.state) : "") : ""}</div><div class="tags">${s.hot ? '<span class="tag hot">● in your hot spot</span>' : ""}${pct ? `<span class="tag fit">✓ ${pct}% fit</span>` : ""}</div></div><div class="btns"><button class="ghost" type="button" data-pitch="${i}">Pitch a pop-up</button>${s.url ? `<a class="ghost" href="${esc(s.url)}" target="_blank" rel="noopener">Event page ↗</a>` : ""}</div></div>`;
+  }).join("")}</div>`);
+  sec.querySelectorAll("[data-pitch]").forEach((b) => b.addEventListener("click", () => openPitch(SHOWS[+b.dataset.pitch])));
+  addShowsToGlobe();
+}
+function pitchText(s){
+  const brand = brandName();
+  const pct = s.affinity ? Math.round(s.affinity * 100) : null;
+  const where = [s.city, s.state].filter(Boolean).join(", ");
+  return `Subject: Pop-up / merch table request: ${s.artist} at ${s.venue}, ${fmtDate(s.date)}
+
+Hi ${s.promoter ? s.promoter + " team" : s.venue + " team"},
+
+I run ${brand}, an independent streetwear brand. We'd love to set up a small pop-up or merch table at the ${s.artist} show at ${s.venue} on ${fmtDate(s.date)}.
+
+Why it fits: ${pct ? `Qloo taste data shows fans of ${s.artist} are a ${pct}% match with our audience` : `our audience overlaps strongly with ${s.artist}'s fans`}${s.hot && where ? `, and ${where} is one of our strongest markets` : ""}.
+
+What we'd bring: one 6-ft table, our own staff and setup, and we're happy to pay a vendor fee or split sales, whatever works best for you.
+
+Who's the right person for vendor or merch requests?
+
+Thanks,
+[Your name]
+${brand} · [Instagram] · [Phone]`;
+}
+function openPitch(s){
+  $("#shTitle").textContent = "Pitch a pop-up";
+  $("#shMeta").textContent = `${s.artist} · ${s.venue} · ${fmtDate(s.date)}`;
+  $("#stage").classList.add("text");
+  $("#stage").innerHTML = `<textarea id="pitchTxt" aria-label="Pitch draft">${esc(pitchText(s))}</textarea>`;
+  $("#shRow").innerHTML = `<button class="ghost" type="button" id="shClose">Close</button><button class="yt" type="button" id="copyPitch">Copy pitch</button>${s.url ? `<a class="ghost" href="${esc(s.url)}" target="_blank" rel="noopener">Venue info ↗</a>` : ""}`;
+  $("#shClose").onclick = closeSheet;
+  $("#copyPitch").onclick = async () => { try { await navigator.clipboard.writeText($("#pitchTxt").value); toast("Pitch copied"); } catch { $("#pitchTxt").select(); toast("Select and copy"); } };
+  $("#sheet").classList.add("on"); $("#scrim").classList.add("on");
+}
+let GLOBE = null;
+function addShowsToGlobe(){
+  const pts = SHOWS.filter((s) => Number.isFinite(s.lat) && Number.isFinite(s.lon));
+  if (!GLOBE || !pts.length) return;
+  const go = () => {
+    if (GLOBE.getSource("shows")) return;
+    GLOBE.addSource("shows", { type: "geojson", data: { type: "FeatureCollection", features: pts.map((s) => ({ type: "Feature", properties: { i: SHOWS.indexOf(s) }, geometry: { type: "Point", coordinates: [s.lon, s.lat] } })) } });
+    GLOBE.addLayer({ id: "show", type: "circle", source: "shows", paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 4, 6, 7, 11, 11], "circle-color": "#f2d4d0", "circle-stroke-color": "#1f7a4d", "circle-stroke-width": 2.5 } });
+    GLOBE.on("click", "show", (ev) => { const s = SHOWS[ev.features[0].properties.i]; GLOBE.flyTo({ center: [s.lon, s.lat], zoom: 12, speed: 1.4 }); openPitch(s); });
+  };
+  GLOBE.isStyleLoaded() ? go() : GLOBE.once("idle", go);
+}
+
 function closeSheet(){
+  $("#stage").classList.remove("text");
   if (audio) audio.pause(); $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); setTimeout(() => { if (!$("#sheet").classList.contains("on")) $("#stage").innerHTML = ""; }, 300); }
 $("#scrim").addEventListener("click", closeSheet);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
 async function openSheet(e){
   if (!e) return;
+  $("#stage").classList.remove("text");
   $("#shTitle").textContent = e.name;
   $("#shMeta").textContent = `${e.type} · found by ${TOOLNAME[e.tool] || e.tool}`;
   const bg = e.image ? `<img src="${esc(e.image)}" alt="" referrerpolicy="no-referrer">` : "";
@@ -489,7 +573,7 @@ async function initGlobe(){
   try { await loadMapLibre(); } catch { el.innerHTML = '<span class="globe-tip">Map unavailable</span>'; return; }
   if (!document.body.contains(el)) return;
   const pts = HEAT.slice(0, 12);
-  const map = new maplibregl.Map({ container: el, style: "https://tiles.openfreemap.org/styles/liberty", center: [pts[0].lon - 40, 25], zoom: 0.9, attributionControl: { compact: true }, cooperativeGestures: true });
+  const map = GLOBE = new maplibregl.Map({ container: el, style: "https://tiles.openfreemap.org/styles/liberty", center: [pts[0].lon - 40, 25], zoom: 0.9, attributionControl: { compact: true }, cooperativeGestures: true });
   let spinning = true;
   const spin = () => { if (!spinning) return; const c = map.getCenter(); c.lng += 0.6; map.easeTo({ center: c, duration: 100, easing: (t) => t }); };
   map.on("style.load", () => {
@@ -498,6 +582,7 @@ async function initGlobe(){
     map.addLayer({ id: "glow", type: "circle", source: "heat", paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 10, 6, 26, 11, 60], "circle-color": "#8c2f39", "circle-opacity": 0.35, "circle-blur": 1 } });
     map.addLayer({ id: "dot", type: "circle", source: "heat", paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 4, 6, 7, 11, 12], "circle-color": "#8c2f39", "circle-stroke-color": "#f2d4d0", "circle-stroke-width": 2 } });
     map.on("moveend", spin); spin();
+    addShowsToGlobe();
   });
   const stop = () => { spinning = false; };
   map.on("mousedown", stop); map.on("touchstart", stop); map.on("wheel", stop);
