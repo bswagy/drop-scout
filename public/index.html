@@ -7,6 +7,7 @@
 <meta name="description" content="Taste intelligence for small streetwear brands. Powered by Qloo.">
 <meta name="theme-color" content="#f8f0dc">
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <style>
   :root{
@@ -38,6 +39,23 @@
   .go:active{transform:scale(.98)}
   .go:disabled{filter:saturate(.6) brightness(1.05);cursor:progress}
   @media (min-width:700px){ .go{display:inline-block;width:auto} }
+  .demo{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:10px;background:transparent;border:1.5px dashed var(--accent);color:var(--accent);border-radius:12px;padding:12px 16px;font:600 14px Inter,sans-serif;min-height:48px;cursor:pointer}
+  .demo:active{transform:scale(.98)}
+  @media (min-width:700px){ .demo{display:inline-flex;width:auto;margin:14px 0 0 10px} }
+  .match{display:inline-flex;align-items:center;gap:3px;margin-top:3px;font:700 11px 'JetBrains Mono',monospace;color:#1f7a4d}
+  .match .ck{display:inline-grid;place-items:center;width:14px;height:14px;border-radius:50%;background:#1f7a4d;color:#fff;font-size:9px}
+  .mbar{display:block;height:3px;margin:3px auto 0;width:56px;background:var(--soft);border-radius:3px;overflow:hidden}
+  .mbar i{display:block;height:100%;background:#1f7a4d;border-radius:3px}
+  .globe{position:relative;height:280px;margin:6px -16px 12px;background:radial-gradient(circle at 50% 45%,#2a1f20,#120d0e 70%);overflow:hidden}
+  @media (min-width:700px){ .globe{height:340px;margin:6px 0 12px;border-radius:12px} }
+  .globe .maplibregl-ctrl-attrib{font-size:10px}
+  .globe-tip{position:absolute;left:10px;top:10px;z-index:2;font:600 11px 'JetBrains Mono',monospace;color:#f2d4d0;background:rgba(18,13,14,.6);padding:4px 8px;border-radius:6px;pointer-events:none}
+  .globe-back{position:absolute;right:10px;top:10px;z-index:2;display:none;background:var(--accent);color:#fff;border:0;border-radius:8px;padding:7px 10px;font:600 12px 'JetBrains Mono',monospace;cursor:pointer}
+  .maplibregl-popup-content{background:var(--card);color:var(--ink);border-radius:12px;padding:0;overflow:hidden;font:13px Inter,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.3)}
+  .gp img{display:block;width:200px;height:110px;object-fit:cover}
+  .gp div{padding:8px 10px}
+  .gp b{display:block;font-family:'Archivo Black',sans-serif;font-size:14px}
+  .gp small{color:var(--muted);font:11px 'JetBrains Mono',monospace}
 
   /* live progress */
   .live{margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;display:none}
@@ -161,6 +179,7 @@
       <button class="chip" type="button" data-ex="A Tokyo-inspired techwear label: black waterproof shells, cargo pants and utility vests, drill and ambient electronic music, cyberpunk anime aesthetic.">Techwear label</button>
     </div>
     <button class="go" id="go" type="submit">Scout my audience</button>
+    <button class="demo" id="demo" type="button">⚡ See a real example: Smacked</button>
   </form>
 
   <section class="live" id="live" aria-live="polite">
@@ -197,9 +216,9 @@ const isDesktop = () => window.matchMedia("(min-width: 821px)").matches;
 let lastReport = "";
 
 // Markdown brief -> one card per "## " section
-function renderBrief(src, entities = []){
+function renderBrief(src, entities = [], heat = []){
   lastReport = src;
-  ENT = entities;
+  ENT = entities; HEAT = heat;
   const sections = []; let cur = null; const tail = [];
   for (const raw of src.split("\n")){
     const line = raw.trimEnd();
@@ -227,10 +246,11 @@ function renderBrief(src, entities = []){
   document.querySelectorAll(".tile").forEach((t) => t.addEventListener("click", () => openSheet(ENT[+t.dataset.i])));
   loadCityPhotos();
   prefetchTracks();
+  if (HEAT.length && $("#globe")) initGlobe();
   $("#againBtn").onclick = () => { $("#brand").focus(); $("#brand").select(); window.scrollTo({ top: $("#f").offsetTop - 12, behavior: "smooth" }); };
 }
 
-let ENT = [];
+let ENT = [], HEAT = [];
 const EQ = '<span class="eq"><i></i><i></i><i></i><i></i><i></i></span>';
 const initials = (n) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
 const PIN = '<span class="pin"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" style="color:var(--accent)" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg></span>';
@@ -276,6 +296,11 @@ function loadCityPhotos(){
     img.onload = () => { pic.innerHTML = ""; pic.appendChild(img); };
   });
 }
+function matchBadge(e){
+  if (e.affinity == null || !(e.affinity > 0)) return "";
+  const pct = Math.max(1, Math.min(100, Math.round(e.affinity * 100)));
+  return `<span class="match" title="Qloo taste-affinity score"><span class="ck">✓</span>${pct}% match</span><span class="mbar"><i style="width:${pct}%"></i></span>`;
+}
 function tilesFor(sec){
   const t = sec.title.toLowerCase();
   const type = /artist|music/.test(t) ? "artist" : /brand/.test(t) ? "brand" : /pop up|pop-up|where/.test(t) ? "place" : /tour|event/.test(t) ? "artist" : null;
@@ -283,13 +308,14 @@ function tilesFor(sec){
   if (type === "place" && !ENT.some((e) => e.type === "place")) {
     for (const c of citiesFrom(sec.lines)) ENT.push({ name: c, type: "place", image: null, tool: "qloo_where_popular", wikiLookup: true });
   }
-  if (!ENT.length) return "";
+  const globe = type === "place" && HEAT.length ? '<div class="globe" id="globe"><span class="globe-tip">Qloo taste heat · tap a dot</span><button class="globe-back" id="globeBack" type="button">↺ Globe</button></div>' : "";
+  if (!ENT.length) return globe;
   const text = sec.lines.join(" ").toLowerCase();
   let picks = ENT.map((e, i) => ({ ...e, i })).filter((e) => e.type === type && text.includes(e.name.toLowerCase()));
   if (!picks.length && /tour|event/.test(t)) return "";
-  if (!picks.length) picks = ENT.map((e, i) => ({ ...e, i })).filter((e) => e.type === type).slice(0, 8);
-  if (!picks.length) return "";
-  return `<div class="tiles">${picks.slice(0, 10).map((e) => `<button type="button" class="tile ${e.type}" data-i="${e.i}"${e.type === "place" && !e.image ? " data-wiki" : ""} aria-label="${esc(e.name)}"><span class="pic">${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">` : e.type === "place" ? PIN : EQ + `<span class="ini">${esc(initials(e.name))}</span>`}${e.type === "artist" ? '<span class="play">▶</span>' : ""}</span><span class="nm">${esc(e.name)}</span></button>`).join("")}</div>`;
+  if (!picks.length && type === "place") picks = ENT.map((e, i) => ({ ...e, i })).filter((e) => e.type === type).slice(0, 8);
+  if (!picks.length) return globe;
+  return globe + `<div class="tiles">${picks.slice(0, 10).map((e) => `<button type="button" class="tile ${e.type}" data-i="${e.i}"${e.type === "place" && !e.image ? " data-wiki" : ""} aria-label="${esc(e.name)}"><span class="pic">${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">` : e.type === "place" ? PIN : EQ + `<span class="ini">${esc(initials(e.name))}</span>`}${e.type === "artist" ? '<span class="play">▶</span>' : ""}</span><span class="nm">${esc(e.name)}</span>${matchBadge(e)}</button>`).join("")}</div>`;
 }
 function imgFail(img){ const pic = img.parentNode; const e = ENT[+pic.parentNode.dataset.i]; img.remove(); pic.insertAdjacentHTML("afterbegin", EQ + `<span class="ini">${esc(initials(e ? e.name : "?"))}</span>`); }
 const TOOLNAME = { qloo_recommend: "Qloo recommendations", qloo_where_popular: "Qloo where-popular map", qloo_describe: "Qloo lookup", qloo_rank: "Qloo ranking" };
@@ -417,6 +443,81 @@ function addFeed(step){
 document.querySelectorAll("[data-ex]").forEach((b) => b.addEventListener("click", () => { $("#brand").value = b.dataset.ex; toast("Example loaded"); }));
 if (isDesktop()) $("#trail").open = true;
 
+function showResult(done, phase){
+  $("#bar").style.width = "100%";
+  renderBrief(done.report || "No brief was produced.", done.entities || [], done.heat || []);
+  renderTrail(done.steps || []);
+  $("#phase").textContent = phase;
+  const p = document.querySelector(".pulse"); if (p) p.style.animation = "none";
+  setTimeout(() => $("#report").scrollIntoView({ behavior: "smooth", block: "start" }), 250);
+}
+// Instant demo: a real Drop Scout run for Smacked, saved so judges see results in seconds.
+$("#demo").addEventListener("click", async () => {
+  const b = $("#demo"); b.disabled = true; b.textContent = "Loading Smacked…";
+  try {
+    const d = await (await fetch("/demo-smacked.json", { cache: "no-store" })).json();
+    $("#brand").value = d.brand || $("#brand").value;
+    $("#feed").innerHTML = ""; $("#live").classList.add("on"); $("#elapsed").textContent = "";
+    const steps = d.steps || [];
+    for (let i = 0; i < steps.length; i++) { addFeed(steps[i]); $("#bar").style.width = (10 + 80 * (i + 1) / steps.length) + "%"; $("#phase").textContent = (LABELS[steps[i].tool] || "Querying Qloo") + "…"; await new Promise((r) => setTimeout(r, 160)); }
+    showResult(d, `Saved real run · ${d.when || ""} · ${steps.length} Qloo calls`);
+  } catch { toast("Couldn't load the example"); }
+  b.disabled = false; b.textContent = "⚡ See a real example: Smacked";
+});
+
+// ---- pop-up globe (MapLibre, OpenFreeMap tiles), dots = Qloo where_popular coordinates ----
+let mlPromise = null;
+function loadMapLibre(){
+  if (window.maplibregl) return Promise.resolve();
+  return mlPromise ||= new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = "https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"; sc.onload = res; sc.onerror = rej; document.head.appendChild(sc); });
+}
+const geoCache = new Map();
+async function placeName(lat, lon){
+  const k = lat.toFixed(2) + "," + lon.toFixed(2);
+  if (geoCache.has(k)) return geoCache.get(k);
+  let name = "";
+  try {
+    const d = await (await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lon}&localityLanguage=en`)).json();
+    const st = (d.principalSubdivisionCode || "").split("-")[1] || d.principalSubdivision || "";
+    name = [d.city || d.locality, st].filter(Boolean).join(", ");
+  } catch {}
+  geoCache.set(k, name);
+  return name;
+}
+async function initGlobe(){
+  const el = $("#globe");
+  try { await loadMapLibre(); } catch { el.innerHTML = '<span class="globe-tip">Map unavailable</span>'; return; }
+  if (!document.body.contains(el)) return;
+  const pts = HEAT.slice(0, 12);
+  const map = new maplibregl.Map({ container: el, style: "https://tiles.openfreemap.org/styles/liberty", center: [pts[0].lon - 40, 25], zoom: 0.9, attributionControl: { compact: true }, cooperativeGestures: true });
+  let spinning = true;
+  const spin = () => { if (!spinning) return; const c = map.getCenter(); c.lng += 0.6; map.easeTo({ center: c, duration: 100, easing: (t) => t }); };
+  map.on("style.load", () => {
+    try { map.setProjection({ type: "globe" }); } catch {}
+    map.addSource("heat", { type: "geojson", data: { type: "FeatureCollection", features: pts.map((p, i) => ({ type: "Feature", properties: { i, a: p.affinity }, geometry: { type: "Point", coordinates: [p.lon, p.lat] } })) } });
+    map.addLayer({ id: "glow", type: "circle", source: "heat", paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 10, 6, 26, 11, 60], "circle-color": "#8c2f39", "circle-opacity": 0.35, "circle-blur": 1 } });
+    map.addLayer({ id: "dot", type: "circle", source: "heat", paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 4, 6, 7, 11, 12], "circle-color": "#8c2f39", "circle-stroke-color": "#f2d4d0", "circle-stroke-width": 2 } });
+    map.on("moveend", spin); spin();
+  });
+  const stop = () => { spinning = false; };
+  map.on("mousedown", stop); map.on("touchstart", stop); map.on("wheel", stop);
+  map.on("mouseenter", "dot", () => { map.getCanvas().style.cursor = "pointer"; });
+  map.on("mouseleave", "dot", () => { map.getCanvas().style.cursor = ""; });
+  let popup = null;
+  map.on("click", "dot", async (ev) => {
+    stop();
+    const p = pts[ev.features[0].properties.i];
+    map.flyTo({ center: [p.lon, p.lat], zoom: 10.5, speed: 1.4, curve: 1.6, essential: true });
+    $("#globeBack").style.display = "block";
+    const name = await placeName(p.lat, p.lon);
+    const w = name ? await wikiPhoto(name) : null;
+    popup?.remove();
+    popup = new maplibregl.Popup({ offset: 14, closeButton: false, maxWidth: "220px" }).setLngLat([p.lon, p.lat])
+      .setHTML(`<div class="gp">${w ? `<img src="${esc(w.thumb)}" alt="" referrerpolicy="no-referrer">` : ""}<div><b>${esc(name || "Hot spot")}</b><small>${p.affinity ? Math.round(p.affinity * 100) + "% taste match · " : ""}Qloo where-popular</small>${w ? '<br><small>photo: Wikipedia</small>' : ""}</div></div>`).addTo(map);
+  });
+  $("#globeBack").onclick = () => { popup?.remove(); $("#globeBack").style.display = "none"; map.flyTo({ center: [pts[0].lon - 40, 25], zoom: 0.9, speed: 1.6 }); };
+}
+
 $("#f").addEventListener("submit", async (e) => {
   e.preventDefault();
   const go = $("#go"); go.disabled = true; go.textContent = "Scouting…";
@@ -453,12 +554,8 @@ $("#f").addEventListener("submit", async (e) => {
     }
     if (!done) throw new Error("The connection dropped. Try again.");
     $("#bar").style.width = "100%";
-    renderBrief(done.report || "No brief was produced.", done.entities || []);
-    renderTrail(done.steps || steps);
     const secs = Math.round((Date.now() - t0) / 1000);
-    $("#phase").textContent = done.cached ? "Done (saved result)" : `Done in ${secs}s · ${(done.steps || steps).length} Qloo calls`;
-    document.querySelector(".pulse").style.animation = "none";
-    setTimeout(() => $("#report").scrollIntoView({ behavior: "smooth", block: "start" }), 250);
+    showResult(done, done.cached ? "Done (saved result)" : `Done in ${secs}s · ${(done.steps || steps).length} Qloo calls`);
   } catch (err) {
     $("#report").innerHTML = `<div class="err">${esc(err.message)}</div>`;
     $("#live").classList.remove("on");
