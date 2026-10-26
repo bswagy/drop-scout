@@ -106,7 +106,12 @@
   .credit{position:absolute;right:8px;bottom:6px;font:11px 'JetBrains Mono',monospace;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);text-decoration:none}
   /* 2000s equalizer */
   .eq{position:absolute;inset:14px 12px 22px;display:flex;align-items:flex-end;justify-content:center;gap:3px}
-  .eq i{flex:1;max-width:7px;background:var(--accent);border-radius:2px 2px 0 0;height:30%;animation:eq 0.9s ease-in-out infinite alternate}
+  .eq i{flex:1;max-width:7px;background:var(--accent);border-radius:2px 2px 0 0;height:30%;animation:eq 0.9s ease-in-out infinite alternate;animation-play-state:paused}
+  .tile.playing .eq i{animation-play-state:running}
+  .eq i:nth-child(1){height:45%}.eq i:nth-child(2){height:75%}.eq i:nth-child(3){height:55%}.eq i:nth-child(4){height:35%}.eq i:nth-child(5){height:65%}
+  .tile .live{position:absolute;inset:0;display:none;background:rgba(42,31,31,.45)}
+  .tile.playing .live{display:block}
+  .tile.playing .live .eq i{background:#f2d4d0}
   .eq i:nth-child(2){animation-duration:.6s;animation-delay:-.2s}
   .eq i:nth-child(3){animation-duration:.75s;animation-delay:-.5s}
   .eq i:nth-child(4){animation-duration:.5s;animation-delay:-.1s}
@@ -122,8 +127,13 @@
   .sheet .meta{font:12px 'JetBrains Mono',monospace;color:var(--muted);margin-bottom:12px}
   .stage{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#1d1617}
   .stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-  .stage .eq{inset:22% 18% 22%;gap:6px}
-  .stage .eq i{max-width:16px;background:linear-gradient(to top,var(--accent),#e8b4b0)}
+  .stage canvas.viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:55%}
+  .stage .shade{position:absolute;inset:0;background:linear-gradient(to top,rgba(29,22,23,.92) 0%,rgba(29,22,23,.35) 55%,rgba(29,22,23,.1) 100%)}
+  .stage .pp{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;border:0;background:var(--accent);color:#fff;font-size:22px;display:grid;place-items:center;box-shadow:0 4px 18px rgba(0,0,0,.35);cursor:pointer}
+  .stage .pp:active{transform:translate(-50%,-50%) scale(.94)}
+  .stage .song{position:absolute;left:12px;right:12px;top:10px;color:#fff;font:600 13px/1.3 Inter,sans-serif;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+  .stage .song small{display:block;font:11px 'JetBrains Mono',monospace;color:#f2d4d0}
+  .stage .prog{position:absolute;left:0;bottom:0;height:3px;background:#f2d4d0;width:0}
   .stage .msg{position:absolute;left:0;right:0;bottom:10px;text-align:center;color:#f2d4d0;font:600 12px 'JetBrains Mono',monospace}
   .stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35}
   .sheet .row{display:flex;gap:8px;margin-top:12px}
@@ -216,6 +226,7 @@ function renderBrief(src, entities = []){
   if ($("#shareBtn")) $("#shareBtn").onclick = () => navigator.share({ title: "Drop Scout brief", text: lastReport }).catch(() => {});
   document.querySelectorAll(".tile").forEach((t) => t.addEventListener("click", () => openSheet(ENT[+t.dataset.i])));
   loadCityPhotos();
+  prefetchTracks();
   $("#againBtn").onclick = () => { $("#brand").focus(); $("#brand").select(); window.scrollTo({ top: $("#f").offsetTop - 12, behavior: "smooth" }); };
 }
 
@@ -282,7 +293,67 @@ function tilesFor(sec){
 }
 function imgFail(img){ const pic = img.parentNode; const e = ENT[+pic.parentNode.dataset.i]; img.remove(); pic.insertAdjacentHTML("afterbegin", EQ + `<span class="ini">${esc(initials(e ? e.name : "?"))}</span>`); }
 const TOOLNAME = { qloo_recommend: "Qloo recommendations", qloo_where_popular: "Qloo where-popular map", qloo_describe: "Qloo lookup", qloo_rank: "Qloo ranking" };
-function closeSheet(){ $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); setTimeout(() => { if (!$("#sheet").classList.contains("on")) $("#stage").innerHTML = ""; }, 300); }
+// ---- music previews (Apple's free iTunes Search API; 30s previews) + live visualizer ----
+const normName = (x) => String(x || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]/g, "");
+async function findTrack(name){
+  try {
+    const r = await fetch("https://itunes.apple.com/search?entity=song&attribute=artistTerm&limit=15&term=" + encodeURIComponent(name));
+    const d = await r.json();
+    const n = normName(name);
+    const rs = (d.results || []).filter((x) => x.previewUrl);
+    const pick = rs.find((x) => normName(x.artistName) === n) || rs.find((x) => normName(x.artistName).includes(n) && n.length >= 4);
+    if (!pick) return null;
+    return { title: pick.trackName, artist: pick.artistName, preview: pick.previewUrl, art: (pick.artworkUrl100 || "").replace("100x100bb", "600x600bb"), url: pick.trackViewUrl };
+  } catch { return null; }
+}
+function prefetchTracks(){ ENT.filter((e) => e.type === "artist" && e.track === undefined).slice(0, 12).forEach(async (e) => { e.track = await findTrack(e.name); }); }
+let audio = null, actx = null, analyser = null, rafId = 0, nowPlaying = null;
+function ensureAudio(){
+  if (audio) return;
+  audio = new Audio(); audio.crossOrigin = "anonymous"; audio.preload = "auto";
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    actx = new AC(); analyser = actx.createAnalyser(); analyser.fftSize = 64; analyser.smoothingTimeConstant = 0.78;
+    actx.createMediaElementSource(audio).connect(analyser); analyser.connect(actx.destination);
+  } catch { analyser = null; }
+  audio.addEventListener("play", syncUi); audio.addEventListener("pause", syncUi); audio.addEventListener("ended", syncUi);
+  audio.addEventListener("timeupdate", () => { const p = $("#stage .prog"); if (p && audio.duration) p.style.width = (100 * audio.currentTime / audio.duration) + "%"; });
+}
+function syncUi(){
+  const playing = audio && !audio.paused && !audio.ended;
+  document.querySelectorAll(".tile.playing").forEach((t) => t.classList.remove("playing"));
+  if (playing && nowPlaying) { const i = ENT.indexOf(nowPlaying); document.querySelectorAll(`.tile[data-i="${i}"]`).forEach((t) => { if (!t.querySelector(".live")) t.querySelector(".pic").insertAdjacentHTML("beforeend", '<span class="live">' + EQ + "</span>"); t.classList.add("playing"); }); }
+  const pp = $("#stage .pp"); if (pp) { pp.textContent = playing ? "❚❚" : "▶"; pp.setAttribute("aria-label", playing ? "Pause" : "Play"); }
+  cancelAnimationFrame(rafId); if (playing) draw();
+}
+function playTrack(e){
+  ensureAudio();
+  if (actx && actx.state === "suspended") actx.resume();
+  if (nowPlaying !== e) { audio.src = e.track.preview; nowPlaying = e; }
+  audio.play().catch(() => syncUi());
+}
+function togglePlay(e){ if (audio && nowPlaying === e && !audio.paused) audio.pause(); else playTrack(e); }
+function draw(){
+  const c = $("#stage canvas.viz");
+  if (c && analyser) {
+    const w = c.width = c.clientWidth * devicePixelRatio, h = c.height = c.clientHeight * devicePixelRatio, g = c.getContext("2d");
+    const data = new Uint8Array(analyser.frequencyBinCount); analyser.getByteFrequencyData(data);
+    const bars = 24, gap = 4 * devicePixelRatio, bw = (w - gap * (bars + 1)) / bars;
+    draw.peaks = draw.peaks || new Array(bars).fill(0);
+    const grad = g.createLinearGradient(0, h, 0, 0); grad.addColorStop(0, "#8c2f39"); grad.addColorStop(1, "#f2d4d0");
+    for (let i = 0; i < bars; i++) {
+      const v = data[Math.min(data.length - 1, Math.floor(i * data.length / bars * 0.85))] / 255;
+      const bh = Math.max(2, v * h * 0.95), x = gap + i * (bw + gap);
+      g.fillStyle = grad; g.fillRect(x, h - bh, bw, bh);
+      draw.peaks[i] = Math.max(bh, draw.peaks[i] - h * 0.012);
+      g.fillStyle = "#fff"; g.fillRect(x, h - draw.peaks[i] - 3 * devicePixelRatio, bw, 2 * devicePixelRatio);
+    }
+  }
+  rafId = requestAnimationFrame(draw);
+}
+
+function closeSheet(){
+  if (audio) audio.pause(); $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); setTimeout(() => { if (!$("#sheet").classList.contains("on")) $("#stage").innerHTML = ""; }, 300); }
 $("#scrim").addEventListener("click", closeSheet);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
 async function openSheet(e){
@@ -303,20 +374,20 @@ async function openSheet(e){
     $("#stage").innerHTML = bg + EQ + `<div class="msg">Strong taste overlap with your audience</div>`;
     return;
   }
-  $("#stage").innerHTML = bg + EQ + '<div class="msg">Finding their official video…</div>';
-  let v = e.youtube ? { id: e.youtube } : null;
-  try { if (!v) v = await (await fetch("/api/video?artist=" + encodeURIComponent(e.name))).json(); } catch { v = {}; }
-  if ($("#shTitle").textContent !== e.name) return;
-  const search = v.search || "https://www.youtube.com/results?search_query=" + encodeURIComponent(e.name + " official music video");
-  if (v.id) {
-    $("#stage").innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(v.id)}?autoplay=1&playsinline=1&rel=0" title="${esc(v.title || e.name)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
-    if (v.title) $("#shMeta").textContent = v.title;
-    $("#shRow").innerHTML = `<button class="ghost" type="button" id="shClose">Close</button><a class="yt" href="https://www.youtube.com/watch?v=${encodeURIComponent(v.id)}" target="_blank" rel="noopener">Open in YouTube</a>`;
-  } else {
-    $("#stage").innerHTML = bg + EQ + '<div class="msg">Tap below to watch on YouTube</div>';
-    $("#shRow").innerHTML = `<button class="ghost" type="button" id="shClose">Close</button><a class="yt" href="${esc(search)}" target="_blank" rel="noopener">Watch on YouTube</a>`;
+  const yt = "https://www.youtube.com/results?search_query=" + encodeURIComponent(e.name + " official music video");
+  const row = (am) => { $("#shRow").innerHTML = `<button class="ghost" type="button" id="shClose">Close</button>${am ? `<a class="yt" href="${esc(am)}" target="_blank" rel="noopener">Listen on Apple Music</a>` : ""}<a class="ghost" href="${esc(yt)}" target="_blank" rel="noopener">Video ↗</a>`; $("#shClose").onclick = closeSheet; };
+  // Start audio inside the tap itself when the preview is already known (phones block play() after a delay).
+  if (e.track === undefined) { $("#stage").innerHTML = bg + '<div class="shade"></div><div class="msg">Finding a track…</div>'; row(); e.track = await findTrack(e.name); if ($("#shTitle").textContent !== e.name) return; }
+  if (!e.track) {
+    $("#stage").innerHTML = bg + `<div class="shade"></div><div class="msg">No preview found for this artist</div>`;
+    row(); return;
   }
-  $("#shClose").onclick = closeSheet;
+  const t = e.track;
+  $("#shMeta").textContent = "30-second preview · Apple Music";
+  $("#stage").innerHTML = `<img class="full" src="${esc(t.art || e.image || "")}" alt="" referrerpolicy="no-referrer"><div class="shade"></div><div class="song">${esc(t.title)}<small>${esc(t.artist)}</small></div><canvas class="viz"></canvas><button class="pp" type="button" aria-label="Play">▶</button><div class="prog"></div>`;
+  row(t.url);
+  $("#stage .pp").onclick = () => togglePlay(e);
+  playTrack(e);
 }
 
 function toast(msg){ const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 1800); }
