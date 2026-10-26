@@ -88,6 +88,42 @@
   footer{margin-top:34px;font-size:13px;color:var(--muted)}
   .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font:600 13px 'JetBrains Mono',monospace;opacity:0;transition:.25s;pointer-events:none}
   .toast.on{opacity:1;transform:translateX(-50%)}
+  /* picture tiles */
+  .tiles{display:flex;gap:12px;overflow-x:auto;margin:8px -16px 10px;padding:4px 16px 6px;scroll-snap-type:x mandatory;scrollbar-width:none}
+  .tiles::-webkit-scrollbar{display:none}
+  .tile{flex:none;width:84px;scroll-snap-align:start;background:none;border:0;padding:0;cursor:pointer;color:var(--ink);text-align:center;font:600 12px/1.25 Inter,sans-serif}
+  .tile .pic{display:block;position:relative;width:76px;height:76px;margin:0 auto 6px;border-radius:50%;overflow:hidden;background:var(--soft);border:2px solid var(--card);box-shadow:0 0 0 2px var(--soft);transition:transform .15s}
+  .tile.place .pic{border-radius:18px}
+  .tile:active .pic{transform:scale(.94)}
+  .tile img{width:100%;height:100%;object-fit:cover;display:block}
+  .tile .ini{position:absolute;inset:auto 0 8px;font:700 13px 'JetBrains Mono',monospace;color:var(--accent)}
+  .tile .play{position:absolute;right:2px;bottom:2px;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:10px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+  .tile .nm{display:block;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  /* 2000s equalizer */
+  .eq{position:absolute;inset:14px 12px 22px;display:flex;align-items:flex-end;justify-content:center;gap:3px}
+  .eq i{flex:1;max-width:7px;background:var(--accent);border-radius:2px 2px 0 0;height:30%;animation:eq 0.9s ease-in-out infinite alternate}
+  .eq i:nth-child(2){animation-duration:.6s;animation-delay:-.2s}
+  .eq i:nth-child(3){animation-duration:.75s;animation-delay:-.5s}
+  .eq i:nth-child(4){animation-duration:.5s;animation-delay:-.1s}
+  .eq i:nth-child(5){animation-duration:.85s;animation-delay:-.35s}
+  @keyframes eq{0%{height:12%}35%{height:85%}60%{height:40%}100%{height:100%}}
+  /* bottom sheet */
+  .scrim{position:fixed;inset:0;background:rgba(42,31,31,.45);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+  .scrim.on{opacity:1;pointer-events:auto}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--card);border-radius:22px 22px 0 0;padding:10px 16px calc(20px + env(safe-area-inset-bottom));transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);max-width:640px;margin:0 auto;box-shadow:0 -8px 30px rgba(0,0,0,.18)}
+  .sheet.on{transform:none}
+  .grab{width:44px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 12px}
+  .sheet h3{font-family:'Archivo Black',sans-serif;font-size:20px;margin:0 0 2px}
+  .sheet .meta{font:12px 'JetBrains Mono',monospace;color:var(--muted);margin-bottom:12px}
+  .stage{position:relative;aspect-ratio:16/9;border-radius:14px;overflow:hidden;background:#1d1617}
+  .stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .stage .eq{inset:22% 18% 22%;gap:6px}
+  .stage .eq i{max-width:16px;background:linear-gradient(to top,var(--accent),#e8b4b0)}
+  .stage .msg{position:absolute;left:0;right:0;bottom:10px;text-align:center;color:#f2d4d0;font:600 12px 'JetBrains Mono',monospace}
+  .stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:.35}
+  .sheet .row{display:flex;gap:8px;margin-top:12px}
+  .sheet .row a,.sheet .row button{flex:1;text-align:center;text-decoration:none}
+  .yt{background:var(--accent);color:#fff;border:0;border-radius:12px;padding:13px;font:600 14px Inter,sans-serif;min-height:48px;display:grid;place-items:center}
   @media (prefers-reduced-motion: reduce){ *{animation:none !important;transition:none !important} }
 </style>
 </head>
@@ -129,6 +165,14 @@
   <footer>Qloo results describe aggregate cultural affinities, not individual people. Drop Scout sends no personal data to Qloo.</footer>
 </div>
 <div class="toast" id="toast"></div>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shTitle">
+  <div class="grab"></div>
+  <h3 id="shTitle"></h3>
+  <div class="meta" id="shMeta"></div>
+  <div class="stage" id="stage"></div>
+  <div class="row" id="shRow"></div>
+</div>
 
 <script>
 const $ = (s) => document.querySelector(s);
@@ -138,8 +182,9 @@ const isDesktop = () => window.matchMedia("(min-width: 821px)").matches;
 let lastReport = "";
 
 // Markdown brief -> one card per "## " section
-function renderBrief(src){
+function renderBrief(src, entities = []){
   lastReport = src;
+  ENT = entities;
   const sections = []; let cur = null; const tail = [];
   for (const raw of src.split("\n")){
     const line = raw.trimEnd();
@@ -159,12 +204,60 @@ function renderBrief(src){
     }
     return html + (inList ? "</ul>" : "");
   };
-  const cards = sections.map((s, i) => `<article class="sec" style="animation-delay:${i * 70}ms"><h2><span class="n">${i + 1}</span>${inline(s.title)}</h2>${body(s.lines)}</article>`).join("");
+  const cards = sections.map((s, i) => `<article class="sec" style="animation-delay:${i * 70}ms"><h2><span class="n">${i + 1}</span>${inline(s.title)}</h2>${tilesFor(s)}${body(s.lines)}</article>`).join("");
   const extras = `<div class="actions"><button class="ghost" type="button" id="copyBtn">Copy brief</button>${navigator.share ? '<button class="ghost" type="button" id="shareBtn">Share</button>' : ""}<button class="ghost" type="button" id="againBtn">Scout another brand</button></div>`;
   $("#report").innerHTML = (cards || `<article class="sec">${body(src.split("\n"))}</article>`) + (tail.length ? `<p class="tools-used">${inline(tail.join(" "))}</p>` : "") + extras;
   $("#copyBtn").onclick = async () => { try { await navigator.clipboard.writeText(lastReport); toast("Brief copied"); } catch { toast("Couldn't copy"); } };
   if ($("#shareBtn")) $("#shareBtn").onclick = () => navigator.share({ title: "Drop Scout brief", text: lastReport }).catch(() => {});
+  document.querySelectorAll(".tile").forEach((t) => t.addEventListener("click", () => openSheet(ENT[+t.dataset.i])));
   $("#againBtn").onclick = () => { $("#brand").focus(); $("#brand").select(); window.scrollTo({ top: $("#f").offsetTop - 12, behavior: "smooth" }); };
+}
+
+let ENT = [];
+const EQ = '<span class="eq"><i></i><i></i><i></i><i></i><i></i></span>';
+const initials = (n) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+function tilesFor(sec){
+  const t = sec.title.toLowerCase();
+  const type = /artist|music/.test(t) ? "artist" : /brand/.test(t) ? "brand" : /pop up|pop-up|where/.test(t) ? "place" : /tour|event/.test(t) ? "artist" : null;
+  if (!type || !ENT.length) return "";
+  const text = sec.lines.join(" ").toLowerCase();
+  let picks = ENT.map((e, i) => ({ ...e, i })).filter((e) => e.type === type && text.includes(e.name.toLowerCase()));
+  if (!picks.length && /tour|event/.test(t)) return "";
+  if (!picks.length) picks = ENT.map((e, i) => ({ ...e, i })).filter((e) => e.type === type).slice(0, 8);
+  if (!picks.length) return "";
+  return `<div class="tiles">${picks.slice(0, 10).map((e) => `<button type="button" class="tile ${e.type}" data-i="${e.i}" aria-label="${esc(e.name)}"><span class="pic">${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">` : EQ + `<span class="ini">${esc(initials(e.name))}</span>`}${e.type === "artist" ? '<span class="play">▶</span>' : ""}</span><span class="nm">${esc(e.name)}</span></button>`).join("")}</div>`;
+}
+function imgFail(img){ const pic = img.parentNode; const e = ENT[+pic.parentNode.dataset.i]; img.remove(); pic.insertAdjacentHTML("afterbegin", EQ + `<span class="ini">${esc(initials(e ? e.name : "?"))}</span>`); }
+const TOOLNAME = { qloo_recommend: "Qloo recommendations", qloo_where_popular: "Qloo where-popular map", qloo_describe: "Qloo lookup", qloo_rank: "Qloo ranking" };
+function closeSheet(){ $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); setTimeout(() => { if (!$("#sheet").classList.contains("on")) $("#stage").innerHTML = ""; }, 300); }
+$("#scrim").addEventListener("click", closeSheet);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
+async function openSheet(e){
+  if (!e) return;
+  $("#shTitle").textContent = e.name;
+  $("#shMeta").textContent = `${e.type} · found by ${TOOLNAME[e.tool] || e.tool}`;
+  const bg = e.image ? `<img src="${esc(e.image)}" alt="" referrerpolicy="no-referrer">` : "";
+  $("#shRow").innerHTML = '<button class="ghost" type="button" id="shClose">Close</button>';
+  $("#shClose").onclick = closeSheet;
+  $("#sheet").classList.add("on"); $("#scrim").classList.add("on");
+  if (e.type !== "artist") {
+    $("#stage").innerHTML = bg + EQ + `<div class="msg">Strong taste overlap with your audience</div>`;
+    return;
+  }
+  $("#stage").innerHTML = bg + EQ + '<div class="msg">Finding their official video…</div>';
+  let v = e.youtube ? { id: e.youtube } : null;
+  try { if (!v) v = await (await fetch("/api/video?artist=" + encodeURIComponent(e.name))).json(); } catch { v = {}; }
+  if ($("#shTitle").textContent !== e.name) return;
+  const search = v.search || "https://www.youtube.com/results?search_query=" + encodeURIComponent(e.name + " official music video");
+  if (v.id) {
+    $("#stage").innerHTML = `<iframe src="https://www.youtube-nocookie.com/embed/${encodeURIComponent(v.id)}?autoplay=1&playsinline=1&rel=0" title="${esc(v.title || e.name)}" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>`;
+    if (v.title) $("#shMeta").textContent = v.title;
+    $("#shRow").innerHTML = `<button class="ghost" type="button" id="shClose">Close</button><a class="yt" href="https://www.youtube.com/watch?v=${encodeURIComponent(v.id)}" target="_blank" rel="noopener">Open in YouTube</a>`;
+  } else {
+    $("#stage").innerHTML = bg + EQ + '<div class="msg">Tap below to watch on YouTube</div>';
+    $("#shRow").innerHTML = `<button class="ghost" type="button" id="shClose">Close</button><a class="yt" href="${esc(search)}" target="_blank" rel="noopener">Watch on YouTube</a>`;
+  }
+  $("#shClose").onclick = closeSheet;
 }
 
 function toast(msg){ const t = $("#toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 1800); }
@@ -230,7 +323,7 @@ $("#f").addEventListener("submit", async (e) => {
     }
     if (!done) throw new Error("The connection dropped. Try again.");
     $("#bar").style.width = "100%";
-    renderBrief(done.report || "No brief was produced.");
+    renderBrief(done.report || "No brief was produced.", done.entities || []);
     renderTrail(done.steps || steps);
     const secs = Math.round((Date.now() - t0) / 1000);
     $("#phase").textContent = done.cached ? "Done (saved result)" : `Done in ${secs}s · ${(done.steps || steps).length} Qloo calls`;
