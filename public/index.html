@@ -89,7 +89,7 @@
   .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font:600 13px 'JetBrains Mono',monospace;opacity:0;transition:.25s;pointer-events:none}
   .toast.on{opacity:1;transform:translateX(-50%)}
   /* picture tiles */
-  .tiles{display:flex;gap:12px;overflow-x:auto;margin:8px -16px 10px;padding:4px 16px 6px;scroll-snap-type:x mandatory;scrollbar-width:none}
+  .tiles{display:flex;align-items:flex-start;gap:12px;overflow-x:auto;margin:8px -16px 10px;padding:4px 16px 6px;scroll-snap-type:x mandatory;scrollbar-width:none}
   .tiles::-webkit-scrollbar{display:none}
   .tile{flex:none;width:84px;scroll-snap-align:start;background:none;border:0;padding:0;cursor:pointer;color:var(--ink);text-align:center;font:600 12px/1.25 Inter,sans-serif}
   .tile .pic{display:block;position:relative;width:76px;height:76px;margin:0 auto 6px;border-radius:50%;overflow:hidden;background:var(--soft);border:2px solid var(--card);box-shadow:0 0 0 2px var(--soft);transition:transform .15s}
@@ -99,6 +99,11 @@
   .tile .ini{position:absolute;inset:auto 0 8px;font:700 13px 'JetBrains Mono',monospace;color:var(--accent)}
   .tile .play{position:absolute;right:2px;bottom:2px;width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-size:10px;box-shadow:0 1px 4px rgba(0,0,0,.25)}
   .tile .nm{display:block;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+  .pin{position:absolute;inset:0;display:grid;place-items:center}
+  .pin svg{width:30px;height:30px;margin-top:-10px}
+  .stage .pin svg{width:64px;height:64px}
+  .stage img.full{opacity:1}
+  .credit{position:absolute;right:8px;bottom:6px;font:11px 'JetBrains Mono',monospace;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);text-decoration:none}
   /* 2000s equalizer */
   .eq{position:absolute;inset:14px 12px 22px;display:flex;align-items:flex-end;justify-content:center;gap:3px}
   .eq i{flex:1;max-width:7px;background:var(--accent);border-radius:2px 2px 0 0;height:30%;animation:eq 0.9s ease-in-out infinite alternate}
@@ -210,22 +215,70 @@ function renderBrief(src, entities = []){
   $("#copyBtn").onclick = async () => { try { await navigator.clipboard.writeText(lastReport); toast("Brief copied"); } catch { toast("Couldn't copy"); } };
   if ($("#shareBtn")) $("#shareBtn").onclick = () => navigator.share({ title: "Drop Scout brief", text: lastReport }).catch(() => {});
   document.querySelectorAll(".tile").forEach((t) => t.addEventListener("click", () => openSheet(ENT[+t.dataset.i])));
+  loadCityPhotos();
   $("#againBtn").onclick = () => { $("#brand").focus(); $("#brand").select(); window.scrollTo({ top: $("#f").offsetTop - 12, behavior: "smooth" }); };
 }
 
 let ENT = [];
 const EQ = '<span class="eq"><i></i><i></i><i></i><i></i><i></i></span>';
 const initials = (n) => n.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("").toUpperCase();
+const PIN = '<span class="pin"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" style="color:var(--accent)" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg></span>';
+const STATES = {AL:"Alabama",AK:"Alaska",AZ:"Arizona",AR:"Arkansas",CA:"California",CO:"Colorado",CT:"Connecticut",DE:"Delaware",DC:"D.C.",FL:"Florida",GA:"Georgia",HI:"Hawaii",ID:"Idaho",IL:"Illinois",IN:"Indiana",IA:"Iowa",KS:"Kansas",KY:"Kentucky",LA:"Louisiana",ME:"Maine",MD:"Maryland",MA:"Massachusetts",MI:"Michigan",MN:"Minnesota",MS:"Mississippi",MO:"Missouri",MT:"Montana",NE:"Nebraska",NV:"Nevada",NH:"New Hampshire",NJ:"New Jersey",NM:"New Mexico",NY:"New York",NC:"North Carolina",ND:"North Dakota",OH:"Ohio",OK:"Oklahoma",OR:"Oregon",PA:"Pennsylvania",RI:"Rhode Island",SC:"South Carolina",SD:"South Dakota",TN:"Tennessee",TX:"Texas",UT:"Utah",VT:"Vermont",VA:"Virginia",WA:"Washington",WV:"West Virginia",WI:"Wisconsin",WY:"Wyoming",PR:"Puerto Rico"};
+// City names the brief lists under "Where to pop up" (Qloo's map results are coordinates, so the names come from the brief).
+function citiesFrom(lines){
+  const out = [];
+  for (const line of lines){
+    const m = line.match(/^\s*(?:[-*•]|\d+[.)])\s+(.*)/); if (!m) continue;
+    let t = (m[1].match(/\*\*(.+?)\*\*/) || [0, m[1]])[1];
+    t = t.split(/\s[–—-]\s|:|\(/)[0].replace(/[*_]/g, "").trim();
+    if (t.length >= 2 && t.length <= 48 && !out.some((x) => x.toLowerCase() === t.toLowerCase())) out.push(t);
+  }
+  return out.slice(0, 8);
+}
+const wikiCache = new Map();
+async function wikiPhoto(city){
+  if (wikiCache.has(city)) return wikiCache.get(city);
+  const parts = city.split(",").map((x) => x.trim());
+  const st = parts[1] && STATES[parts[1].toUpperCase()];
+  const tries = [...new Set([st ? `${parts[0]}, ${st}` : null, city, parts[0]].filter(Boolean))];
+  let hit = null;
+  for (const t of tries){
+    try {
+      const r = await fetch("https://en.wikipedia.org/api/rest_v1/page/summary/" + encodeURIComponent(t.replace(/ /g, "_")));
+      if (!r.ok) continue;
+      const d = await r.json();
+      if (d.type === "disambiguation" || !d.thumbnail) continue;
+      hit = { thumb: d.thumbnail.source, full: (d.originalimage || d.thumbnail).source, page: d.content_urls?.mobile?.page || d.content_urls?.desktop?.page, title: d.title };
+      break;
+    } catch {}
+  }
+  wikiCache.set(city, hit);
+  return hit;
+}
+function loadCityPhotos(){
+  document.querySelectorAll(".tile.place[data-wiki]").forEach(async (tile) => {
+    const e = ENT[+tile.dataset.i]; if (!e) return;
+    const w = await wikiPhoto(e.name); if (!w) return;
+    e.wiki = w;
+    const pic = tile.querySelector(".pic");
+    const img = new Image(); img.alt = ""; img.referrerPolicy = "no-referrer"; img.src = w.thumb;
+    img.onload = () => { pic.innerHTML = ""; pic.appendChild(img); };
+  });
+}
 function tilesFor(sec){
   const t = sec.title.toLowerCase();
   const type = /artist|music/.test(t) ? "artist" : /brand/.test(t) ? "brand" : /pop up|pop-up|where/.test(t) ? "place" : /tour|event/.test(t) ? "artist" : null;
-  if (!type || !ENT.length) return "";
+  if (!type) return "";
+  if (type === "place" && !ENT.some((e) => e.type === "place")) {
+    for (const c of citiesFrom(sec.lines)) ENT.push({ name: c, type: "place", image: null, tool: "qloo_where_popular", wikiLookup: true });
+  }
+  if (!ENT.length) return "";
   const text = sec.lines.join(" ").toLowerCase();
   let picks = ENT.map((e, i) => ({ ...e, i })).filter((e) => e.type === type && text.includes(e.name.toLowerCase()));
   if (!picks.length && /tour|event/.test(t)) return "";
   if (!picks.length) picks = ENT.map((e, i) => ({ ...e, i })).filter((e) => e.type === type).slice(0, 8);
   if (!picks.length) return "";
-  return `<div class="tiles">${picks.slice(0, 10).map((e) => `<button type="button" class="tile ${e.type}" data-i="${e.i}" aria-label="${esc(e.name)}"><span class="pic">${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">` : EQ + `<span class="ini">${esc(initials(e.name))}</span>`}${e.type === "artist" ? '<span class="play">▶</span>' : ""}</span><span class="nm">${esc(e.name)}</span></button>`).join("")}</div>`;
+  return `<div class="tiles">${picks.slice(0, 10).map((e) => `<button type="button" class="tile ${e.type}" data-i="${e.i}"${e.type === "place" && !e.image ? " data-wiki" : ""} aria-label="${esc(e.name)}"><span class="pic">${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">` : e.type === "place" ? PIN : EQ + `<span class="ini">${esc(initials(e.name))}</span>`}${e.type === "artist" ? '<span class="play">▶</span>' : ""}</span><span class="nm">${esc(e.name)}</span></button>`).join("")}</div>`;
 }
 function imgFail(img){ const pic = img.parentNode; const e = ENT[+pic.parentNode.dataset.i]; img.remove(); pic.insertAdjacentHTML("afterbegin", EQ + `<span class="ini">${esc(initials(e ? e.name : "?"))}</span>`); }
 const TOOLNAME = { qloo_recommend: "Qloo recommendations", qloo_where_popular: "Qloo where-popular map", qloo_describe: "Qloo lookup", qloo_rank: "Qloo ranking" };
@@ -240,6 +293,12 @@ async function openSheet(e){
   $("#shRow").innerHTML = '<button class="ghost" type="button" id="shClose">Close</button>';
   $("#shClose").onclick = closeSheet;
   $("#sheet").classList.add("on"); $("#scrim").classList.add("on");
+  if (e.type === "place") {
+    const w = e.wiki || await wikiPhoto(e.name);
+    $("#shMeta").textContent = "pop-up city · from Qloo's where-popular map";
+    $("#stage").innerHTML = w ? `<img class="full" src="${esc(w.full)}" alt="${esc(e.name)}" referrerpolicy="no-referrer"><a class="credit" href="${esc(w.page || "https://wikipedia.org")}" target="_blank" rel="noopener">photo: Wikipedia</a>` : PIN + `<div class="msg">Strong taste match with your audience</div>`;
+    return;
+  }
   if (e.type !== "artist") {
     $("#stage").innerHTML = bg + EQ + `<div class="msg">Strong taste overlap with your audience</div>`;
     return;
