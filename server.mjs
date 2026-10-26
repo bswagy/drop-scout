@@ -18,7 +18,7 @@ const PORT = Number(process.env.PORT || 3000);
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
 const MAX_TOOL_ROUNDS = 5;
 const QLOO_TIMEOUT_MS = 30_000;
-const GEMINI_TIMEOUT_MS = 20_000;
+const GEMINI_TIMEOUT_MS = 12_000;
 const SCOUT_BUDGET_MS = 75_000;
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
@@ -137,6 +137,7 @@ async function geminiOnce(model, baseBody) {
   return { content };
 }
 
+const modelFailAt = new Map();
 // `run` keeps one model per scout once it works, so the conversation stays on the same model.
 async function gemini(contents, { tools = true, run = {} } = {}) {
   const body = {
@@ -145,7 +146,11 @@ async function gemini(contents, { tools = true, run = {} } = {}) {
     generationConfig: { temperature: 0.4 },
   };
   if (tools) body.tools = [{ functionDeclarations: functionDeclarations() }];
-  const order = run.model ? [run.model, ...GEMINI_MODELS.filter((m) => m !== run.model)] : GEMINI_MODELS;
+  // Models that were busy or timed out recently go to the back of the line for a few minutes.
+  const now = Date.now();
+  const healthy = GEMINI_MODELS.filter((m) => !(now - (modelFailAt.get(m) || 0) < 10 * 60_000));
+  const base = [...healthy, ...GEMINI_MODELS.filter((m) => !healthy.includes(m))];
+  const order = run.model ? [run.model, ...base.filter((m) => m !== run.model)] : base;
   let last = 0;
   for (const model of order) {
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -153,7 +158,9 @@ async function gemini(contents, { tools = true, run = {} } = {}) {
       if (res.content) { run.model = model; return res.content; }
       last = res.status;
       if (!res.retry) throw new PublicError("The AI model request failed.");
-      if (res.status === 404) break;          // model name not available: next model
+      modelFailAt.set(model, Date.now());
+      if (run.model === model) delete run.model;
+      if (res.status === 404 || res.status === 504 || res.status === 503) break;   // missing, slow or overloaded: go straight to the next model
       if (attempt === 0) await sleep(1500);   // brief backoff, then one retry
     }
   }
