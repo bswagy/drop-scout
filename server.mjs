@@ -190,6 +190,7 @@ Final answer format (Markdown, under 450 words), using exactly these headings:
 ## Tour & event tie-ins
 ## What to drop next
 ## Marketing moves this week
+"Where to pop up": the where_popular results are coordinates; turn each into the nearest specific city, and list 3-4 as bullets that start with the city in bold, like "- **Oakland, CA**: why". Use real city names, never regions.
 "Tour & event tie-ins": name 2-3 of the artists found above whose fans overlap this brand, and suggest how to show up around their shows or events (pop-up near the venue, limited collab-style capsule, merch-table partnership). Do not claim any artist is touring unless a tool result says so; phrase it as "when they play nearby".
 Under "What to drop next" and "Marketing moves this week", give 2-3 concrete ideas each, tie every idea to a Qloo finding above, and say what result to measure (sell-through, sign-ups, sales per city).
 End with one line in italics that names which Qloo tools you used.`;
