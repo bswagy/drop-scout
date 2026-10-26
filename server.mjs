@@ -64,6 +64,36 @@ async function callQloo(name, args) {
   return env;
 }
 
+// Qloo wants entity IDs for named signals; plain names come back as needs_input.
+// Resolve names to IDs first with qloo_describe (cached), so recommend/rank calls succeed on the first try.
+const UUID_RE = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
+const idCache = new Map();
+async function resolveName(name, type) {
+  const key = `${type || ""}:${String(name).toLowerCase()}`;
+  if (idCache.has(key)) return idCache.get(key);
+  let id = null;
+  try {
+    const env = await callQloo("qloo_describe", type ? { entity: name, type } : { entity: name });
+    const r = (env.results || [])[0] || {};
+    id = r.entity_id || r.id || r.entity?.entity_id || null;
+    if (id && !UUID_RE.test(id)) id = null;
+  } catch {}
+  idCache.set(key, id);
+  return id;
+}
+async function resolveArgs(tool, args = {}) {
+  const a = { ...args };
+  const fields = tool === "qloo_recommend" ? [["signals", a.target_type]] : tool === "qloo_rank" ? [["signals", null], ["options", a.option_type]] : tool === "qloo_compare_audiences" ? [["group_a", null], ["group_b", null]] : [];
+  const notes = [];
+  for (const [f, type] of fields) {
+    if (!Array.isArray(a[f])) continue;
+    const out = await Promise.all(a[f].map(async (v) => (UUID_RE.test(v) ? v : (await resolveName(v, type)) || (await resolveName(v, null)) || v)));
+    a[f] = out;
+    notes.push(...args[f].filter((v, i) => out[i] !== v).map((v, i) => v));
+  }
+  return { args: a, resolved: notes };
+}
+
 // ---------- Gemini ----------
 
 // Gemini accepts a subset of JSON Schema in `parameters`; strip what it rejects.
@@ -401,7 +431,8 @@ async function runScout(brand, emit = () => {}) {
       const { name, args } = functionCall;
       let env;
       try {
-        env = await callQloo(name, args);
+        const { args: fixed } = await resolveArgs(name, args);
+        env = await callQloo(name, fixed);
       } catch (e) {
         console.error("qloo call failed", name, e.message);
         env = { status: "error", summary: "Qloo call failed", results: [] };
@@ -449,14 +480,14 @@ async function handleScout(req, res) {
   if (now - (lastHit.get(ip) || 0) < 15_000) return send(res, 429, { error: "One scout every 15 seconds, please." });
   lastHit.set(ip, now);
 
-  const { brand } = await readBody(req);
+  const { brand, fresh } = await readBody(req);
   const text = String(brand || "").trim().slice(0, 1200);
   if (text.length < 15) return send(res, 400, { error: "Describe the brand in at least a sentence." });
 
   const key = text.toLowerCase();
   const hit = cache.get(key);
   const stream = String(req.headers.accept || "").includes("application/x-ndjson");
-  if (hit && now - hit.at < CACHE_TTL_MS) {
+  if (hit && !fresh && now - hit.at < CACHE_TTL_MS) {
     if (!stream) return send(res, 200, { ...hit.result, cached: true });
     res.writeHead(200, { "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" });
     return res.end(JSON.stringify({ type: "done", ...hit.result, cached: true }) + "\n");
