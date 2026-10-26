@@ -18,7 +18,7 @@ const PORT = Number(process.env.PORT || 3000);
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-flash-latest";
 const MAX_TOOL_ROUNDS = 5;
 const QLOO_TIMEOUT_MS = 30_000;
-const GEMINI_TIMEOUT_MS = 25_000;
+const GEMINI_TIMEOUT_MS = 20_000;
 const SCOUT_BUDGET_MS = 75_000;
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 
@@ -104,8 +104,11 @@ const functionDeclarations = () => qlooTools.map((t) => ({
 const GEMINI_MODELS = [...new Set([GEMINI_MODEL, ...(process.env.GEMINI_FALLBACKS || "gemini-3.8-flash,gemini-flash-lite-latest").split(",").map((m) => m.trim()).filter(Boolean)])];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function geminiOnce(model, body) {
+// Long "thinking" made each turn take 20s+. Turn it down; if a model rejects the setting, remember and send without it.
+const noThinkingCfg = new Set();
+async function geminiOnce(model, baseBody) {
   const t0 = Date.now();
+  const body = noThinkingCfg.has(model) ? baseBody : { ...baseBody, generationConfig: { ...baseBody.generationConfig, thinkingConfig: { thinkingBudget: 0 } } };
   let r;
   try {
     r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
@@ -119,6 +122,11 @@ async function geminiOnce(model, body) {
     return { retry: true, status: e.name === "TimeoutError" ? 504 : 502 };
   }
   const data = await r.json().catch(() => ({}));
+  if (!r.ok && r.status === 400 && !noThinkingCfg.has(model) && /think/i.test(String(data?.error?.message))) {
+    console.error(`[step] gemini ${model} rejected thinkingConfig; retrying without it`);
+    noThinkingCfg.add(model);
+    return geminiOnce(model, baseBody);
+  }
   if (!r.ok) {
     console.error(`[step] gemini ${model} error ${r.status}: ${String(data?.error?.message).slice(0, 160)}`);
     return { retry: [429, 500, 503, 504, 404].includes(r.status), status: r.status };
@@ -278,6 +286,7 @@ async function findVideo(artist) {
       const data = await r.json();
       const text = (data.candidates?.[0]?.content?.parts || []).map((p) => p.text || "").join("\n");
       const ids = [...new Set([...text.matchAll(/(?:v=|youtu\.be\/|shorts\/|embed\/)([\w-]{11})/g)].map((m) => m[1]))];
+      console.log(`[video] ${model} gave ${ids.length} ids; text: ${text.replace(/\s+/g, " ").slice(0, 160)}`);
       for (const id of ids.slice(0, 4)) {
         const meta = await oembed(id);
         if (!meta) continue;
