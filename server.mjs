@@ -122,7 +122,7 @@ async function geminiOnce(model, baseBody) {
     return { retry: true, status: e.name === "TimeoutError" ? 504 : 502 };
   }
   const data = await r.json().catch(() => ({}));
-  if (!r.ok && r.status === 400 && !noThinkingCfg.has(model) && /think/i.test(String(data?.error?.message))) {
+  if (!r.ok && r.status === 400 && !noThinkingCfg.has(model)) {
     console.error(`[step] gemini ${model} rejected thinkingConfig; retrying without it`);
     noThinkingCfg.add(model);
     return geminiOnce(model, baseBody);
