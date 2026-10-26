@@ -116,28 +116,57 @@ function renderSteps(steps){
 
 document.querySelectorAll("[data-ex]").forEach((b) => b.addEventListener("click", () => { $("#brand").value = b.dataset.ex; $("#brand").focus(); }));
 
-const phases = ["Reading your brand…", "Resolving tags in Qloo…", "Finding what your audience loves…", "Checking where the taste is popular…", "Writing your brief…"];
+const LABELS = {
+  qloo_find_tags: "Finding Qloo tags", qloo_describe: "Looking up", qloo_recommend: "Finding what fans also love",
+  qloo_rank: "Ranking options", qloo_where_popular: "Finding where it's popular", qloo_compare_audiences: "Comparing audiences",
+  qloo_entity_tags: "Reading tags", qloo_audience_demographics: "Profiling the audience", qloo_trends: "Checking trends"
+};
+const live = [];
+function renderLive(){
+  $("#steps").innerHTML = live.length ? live.map((s, i) => {
+    const cls = s.status === "ok" ? "ok" : "warn";
+    const args = Object.entries(s.args || {}).map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : v}`).join(", ");
+    return `<div class="step"><b>${i + 1}. ${esc(s.tool)}<span class="badge ${cls}">${esc(s.status)}${s.count ? " · " + esc(s.count) : ""}</span></b><span class="s">${esc(args).slice(0, 220)}</span></div>`;
+  }).join("") : '<p class="empty">Waiting for the agent…</p>';
+}
 
 $("#f").addEventListener("submit", async (e) => {
   e.preventDefault();
   const go = $("#go"); go.disabled = true;
-  let i = 0; $("#status").textContent = phases[0];
-  const tick = setInterval(() => { i = Math.min(i + 1, phases.length - 1); $("#status").textContent = phases[i]; }, 7000);
-  $("#report").innerHTML = '<p class="empty">Scouting…</p>';
-  $("#steps").innerHTML = '<p class="empty">Waiting for the agent…</p>';
+  const t0 = Date.now();
+  const clock = setInterval(() => { $("#elapsed").textContent = Math.round((Date.now() - t0) / 1000) + "s"; }, 1000);
+  live.length = 0; renderLive();
+  $("#status").innerHTML = '<span id="phase">Starting…</span> <span id="elapsed">0s</span>';
+  $("#report").innerHTML = '<p class="empty">The agent is querying Qloo. Each call shows up in the evidence trail as it happens.</p>';
   try {
-    const r = await fetch("/api/scout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ brand: $("#brand").value }) });
-    const d = await r.json();
-    if (!r.ok) throw new Error(d.error || "Something went wrong.");
-    $("#report").innerHTML = md(d.report || "No brief was produced.");
-    renderSteps(d.steps);
-    $("#status").textContent = d.cached ? "Done (cached result)" : "Done";
+    const r = await fetch("/api/scout", { method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/x-ndjson" }, body: JSON.stringify({ brand: $("#brand").value }) });
+    if (!r.ok && !(r.headers.get("content-type") || "").includes("ndjson")) { const d = await r.json().catch(() => ({})); throw new Error(d.error || "Something went wrong."); }
+    const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = ""; let done = null;
+    while (true) {
+      const { value, done: end } = await reader.read();
+      if (value) buf += dec.decode(value, { stream: true });
+      let nl;
+      while ((nl = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, nl).trim(); buf = buf.slice(nl + 1);
+        if (!line) continue;
+        const ev = JSON.parse(line);
+        if (ev.type === "phase") $("#phase").textContent = ev.text + "…";
+        else if (ev.type === "step") { live.push(ev.step); renderLive(); $("#phase").textContent = (LABELS[ev.step.tool] || "Querying Qloo") + "…"; }
+        else if (ev.type === "error") throw new Error(ev.error);
+        else if (ev.type === "done") done = ev;
+      }
+      if (end) break;
+    }
+    if (!done) throw new Error("The connection dropped. Try again.");
+    $("#report").innerHTML = md(done.report || "No brief was produced.");
+    live.length = 0; live.push(...(done.steps || [])); renderLive();
+    const secs = Math.round((Date.now() - t0) / 1000);
+    $("#status").textContent = done.cached ? "Done (saved result)" : `Done in ${secs}s · ${live.length} Qloo calls`;
   } catch (err) {
     $("#report").innerHTML = `<p class="err">${esc(err.message)}</p>`;
-    $("#steps").innerHTML = "";
     $("#status").textContent = "";
   } finally {
-    clearInterval(tick); go.disabled = false;
+    clearInterval(clock); go.disabled = false;
   }
 });
 </script>
