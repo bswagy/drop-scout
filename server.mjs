@@ -176,7 +176,7 @@ End with one line in italics that names which Qloo tools you used.`;
 
 class PublicError extends Error {}
 
-async function runScout(brand) {
+async function runScout(brand, emit = () => {}) {
   const steps = [];
   const contents = [{ role: "user", parts: [{ text: `Brand description:\n${brand}` }] }];
 
@@ -185,6 +185,7 @@ async function runScout(brand) {
   console.log(`[scout] start (${brand.length} chars)`);
   for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
     if (Date.now() - started > SCOUT_BUDGET_MS) { console.log("[scout] time budget reached, writing up"); break; }
+    emit({ type: "phase", text: round === 0 ? "Reading your brand and planning Qloo queries" : "Reviewing results and choosing next queries" });
     const msg = await gemini(contents, { run });
     contents.push(msg);
     const calls = (msg.parts || []).filter((p) => p.functionCall);
@@ -203,7 +204,9 @@ async function runScout(brand) {
         console.error("qloo call failed", name, e.message);
         env = { status: "error", summary: "Qloo call failed", results: [] };
       }
-      steps.push({ tool: name, args, status: env.status, summary: env.summary, count: env.result_count ?? (env.results || []).length });
+      const step = { tool: name, args, status: env.status, summary: env.summary, count: env.result_count ?? (env.results || []).length };
+      steps.push(step);
+      emit({ type: "step", step });
       const trimmed = { status: env.status, summary: env.summary, result_count: env.result_count, results: (env.results || []).slice(0, 12), error: env.error ? { code: env.error.code, retryable: env.error.retryable } : undefined };
       responses.push({ functionResponse: { name, response: trimmed } });
     }
@@ -212,6 +215,7 @@ async function runScout(brand) {
 
   // Out of rounds or empty answer: ask for the write-up without tools.
   contents.push({ role: "user", parts: [{ text: "Write the final brief now from the evidence above, in the required format." }] });
+  emit({ type: "phase", text: "Writing your brief" });
   const final = await gemini(contents, { tools: false, run });
   return { report: (final.parts || []).map((p) => p.text || "").join("").trim(), steps, model: run.model };
 }
@@ -247,14 +251,36 @@ async function handleScout(req, res) {
 
   const key = text.toLowerCase();
   const hit = cache.get(key);
-  if (hit && now - hit.at < CACHE_TTL_MS) return send(res, 200, { ...hit.result, cached: true });
+  const stream = String(req.headers.accept || "").includes("application/x-ndjson");
+  if (hit && now - hit.at < CACHE_TTL_MS) {
+    if (!stream) return send(res, 200, { ...hit.result, cached: true });
+    res.writeHead(200, { "Content-Type": "application/x-ndjson", "Cache-Control": "no-store" });
+    return res.end(JSON.stringify({ type: "done", ...hit.result, cached: true }) + "\n");
+  }
 
   if (running >= 2) return send(res, 503, { error: "Drop Scout is busy. Try again in a moment." });
   running++;
   try {
-    const result = await runScout(text);
-    cache.set(key, { at: Date.now(), result });
-    return send(res, 200, result);
+    if (!stream) {
+      const result = await runScout(text);
+      cache.set(key, { at: Date.now(), result });
+      return send(res, 200, result);
+    }
+    // Stream progress as newline-delimited JSON so the page can show each Qloo call live.
+    res.writeHead(200, { "Content-Type": "application/x-ndjson", "Cache-Control": "no-store", "X-Accel-Buffering": "no" });
+    const write = (o) => { try { res.write(JSON.stringify(o) + "\n"); } catch {} };
+    const ping = setInterval(() => write({ type: "ping" }), 10_000);
+    try {
+      const result = await runScout(text, write);
+      cache.set(key, { at: Date.now(), result });
+      write({ type: "done", ...result });
+    } catch (e) {
+      console.error(e);
+      write({ type: "error", error: e instanceof PublicError ? e.message : "Something went wrong. Try again." });
+    } finally {
+      clearInterval(ping);
+      res.end();
+    }
   } finally {
     running--;
   }
@@ -277,6 +303,7 @@ async function serveStatic(req, res) {
 const server = http.createServer(async (req, res) => {
   try {
     if (req.method === "POST" && req.url === "/api/scout") return await handleScout(req, res);
+    if (req.method === "GET" && req.url === "/api/tools") return send(res, 200, qlooTools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })));
     if (req.method === "GET" && req.url === "/api/health") return send(res, 200, { ok: true, qloo: Boolean(qloo), tools: qlooTools.length, model: GEMINI_MODEL });
     if (req.method === "GET") return await serveStatic(req, res);
     send(res, 405, { error: "Method not allowed" });
