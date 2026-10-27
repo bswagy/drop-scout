@@ -401,19 +401,21 @@ async function findTrends(items) {
   const end = new Date(), start = new Date(Date.now() - 90 * 864e5);
   const iso = (d) => d.toISOString().slice(0, 10);
   const env = await callQloo("qloo_trends", { entities: pairs.map(([, id]) => id), entity_type: "artist", start_date: iso(start), end_date: iso(end) }).catch(() => ({ results: [] }));
-  console.log("[shape] qloo_trends keys:", Object.keys(env).join(","), "|", JSON.stringify(env).replace(/https?:\/\/\S+?"/g, '"URL"').slice(0, 1500));
-  // Items may sit in results or in another array on the envelope; take the first non-empty array of objects.
-  let rows = (env.results || []).filter((x) => x && typeof x === "object" && Object.keys(x).length);
-  if (!rows.length) for (const v of Object.values(env)) { if (Array.isArray(v) && v.length && typeof v[0] === "object") { rows = v; break; } if (v && typeof v === "object" && !Array.isArray(v)) for (const w of Object.values(v)) if (Array.isArray(w) && w.length && typeof w[0] === "object") { rows = w; break; } if (rows.length) break; }
-  // If the series are one flat list of points tagged with entity ids, group them per entity.
-  if (rows.length && !rows.some((it) => seriesOf(it)) && rows[0] && (rows[0].entity_id || rows[0].id)) {
+  console.log("[shape] qloo_trends series:", JSON.stringify(env.series ?? null).replace(/https?:\/\/\S+?"/g, '"URL"').slice(0, 1200));
+  // Qloo returns the time series under env.series (array or object keyed by entity); fall back to results.
+  const ser = env.series;
+  let rows = Array.isArray(ser) ? ser : ser && typeof ser === "object" ? Object.entries(ser).map(([k, v]) => (Array.isArray(v) ? { entity_id: k, points: v } : { entity_id: k, ...v })) : (env.results || []);
+  rows = rows.filter((x) => x && typeof x === "object");
+  // A flat list of points tagged with entity ids: group them per entity.
+  if (rows.length && !rows.some((it) => seriesOf(it)) && (rows[0].entity_id || rows[0].id)) {
     const by = new Map(); for (const it of rows) { const k = it.entity_id || it.id; if (!by.has(k)) by.set(k, []); by.get(k).push(it); }
     rows = [...by.entries()].map(([k, pts]) => ({ entity_id: k, points: pts }));
   }
+  for (const o of env.resolution?.outcomes || []) if (o?.selected?.id && o.selected.name) nameById.set(o.selected.id, o.selected.name);
   const trends = [];
   rows.forEach((r, i) => {
     const id = r.entity_id || r.id || r.entity?.entity_id;
-    const name = r.name || r.entity?.name || (pairs.find(([, x]) => x === id) || pairs[i] || [])[0];
+    const name = r.name || r.entity?.name || nameById.get(id) || (pairs.find(([, x]) => x === id) || pairs[i] || [])[0];
     const sr = seriesOf(r);
     if (!name || !sr || !sr.first) return;
     const change = ((sr.last - sr.first) / Math.abs(sr.first)) * 100;
