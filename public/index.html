@@ -536,7 +536,7 @@ function proofHtml(){
 
 // ---- trend ticker (Qloo trends) ----
 async function loadTrends(){
-  const names = ENT.filter((e) => e.type === "artist" && document.querySelector(`.tile.artist[data-i="${ENT.indexOf(e)}"]`)).slice(0, 5).map((e) => e.name);
+  const names = ENT.filter((e) => e.type === "artist" && document.querySelector(`.tile.artist[data-i="${ENT.indexOf(e)}"]`)).slice(0, 5).map((e) => ({ name: e.name, id: e.id }));
   if (!names.length) return;
   let d; try { d = await (await fetch("/api/trends", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artists: names }) })).json(); } catch { return; }
   const tr = (d.trends || []).filter((x) => x.name);
