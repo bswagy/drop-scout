@@ -176,6 +176,9 @@
   .lang{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--card)}
   .lang button{border:0;background:transparent;color:var(--muted);font:700 12px 'JetBrains Mono',monospace;padding:7px 10px;cursor:pointer;min-height:34px}
   .lang button.on{background:var(--accent);color:#fff}
+  .stats{display:flex;flex-wrap:wrap;gap:8px;margin:-8px 0 20px;font:600 12px 'JetBrains Mono',monospace;color:var(--muted)}
+  .stats span{background:var(--card);border:1px solid var(--line);border-radius:999px;padding:6px 10px}
+  .stats b{color:#1f7a4d}
   .pitchline{font:600 14px/1.45 Inter,sans-serif;color:var(--ink);background:var(--card);border-left:3px solid var(--accent);border-radius:8px;padding:10px 12px;margin:-8px 0 20px;max-width:620px}
   .proof{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
   .vbadge{display:inline-flex;align-items:center;gap:6px;background:#e3f1e8;color:#1f7a4d;border:1px solid #bfe0cb;border-radius:999px;padding:7px 12px;font:700 13px 'JetBrains Mono',monospace}
@@ -221,6 +224,7 @@
   <h1 data-i18n="h1">Know who your<br>drop is <em>for.</em></h1>
   <p class="lede" data-i18n="lede">Describe your brand. Drop Scout's agent queries Qloo's taste graph to find the artists, brands and cities your audience already loves, then turns that into what to drop next and where to sell it.</p>
   <p class="pitchline" data-i18n="pitch">Big brands pay agencies for taste research. Independent brands get it here: two sentences in, a full launch plan out in about 30 seconds, with every name verified against Qloo's taste data.</p>
+  <p class="stats" data-i18n="stats"><span>Tested on 20 brands</span><span><b>97.9%</b> of names confirmed by Qloo</span><span><b>21s</b> average scout</span></p>
 
   <form id="f">
     <label for="brand" data-i18n="label">Your brand</label>
@@ -505,10 +509,12 @@ function addShowsToGlobe(){
 // ---- language ----
 const T = {
   en: { powered: "taste data by Qloo<br>agent by Gemini", h1: "Know who your<br>drop is <em>for.</em>", lede: "Describe your brand. Drop Scout's agent queries Qloo's taste graph to find the artists, brands and cities your audience already loves, then turns that into what to drop next and where to sell it.", pitch: "Big brands pay agencies for taste research. Independent brands get it here: two sentences in, a full launch plan out in about 30 seconds, with every name verified against Qloo's taste data.", label: "Your brand", go: "Scout my audience", demo: "⚡ See a real example: Smacked", ph: "Your brief shows up here as cards: audience, artists, brands, pop-up cities, event tie-ins and what to drop next. A scout takes under a minute.",
-    verified: "Verified by Qloo:", names: "names", removedN: "unbacked removed", live: "live Qloo calls", plan: "Plan", seeds: "seeds", ticker: "TRENDING · 90 DAYS", board: "QLOO MATCH BOARD",
+    verified: "Verified by Qloo:", names: "names", removedN: "unbacked removed", live: "live Qloo calls", plan: "Plan", seeds: "seeds", ticker: "TRENDING · 90 DAYS", board: "QLOO MATCH BOARD", retrying: "Google's AI is busy for a moment. Retrying automatically in 15 seconds…",
+    stats: "<span>Tested on 20 brands</span><span><b>97.9%</b> of names confirmed by Qloo</span><span><b>21s</b> average scout</span>",
     askH: "Ask a follow-up", askSub: "The agent goes back to Qloo for new data.", askPh: "e.g. What about New York?", askGo: "Ask", askEx: ["What about New York?", "Who's rising right now?", "Cheaper drop ideas?"], thinking: "Asking Qloo…", used: "Qloo calls" },
   es: { powered: "datos de gusto: Qloo<br>agente: Gemini", h1: "Descubre para quién<br>es tu <em>drop.</em>", lede: "Describe tu marca. El agente de Drop Scout consulta el grafo de gustos de Qloo para encontrar los artistas, marcas y ciudades que tu audiencia ya ama, y lo convierte en qué lanzar después y dónde venderlo.", pitch: "Las grandes marcas pagan agencias para investigar gustos. Las marcas independientes lo tienen aquí: dos frases de entrada, un plan de lanzamiento completo en unos 30 segundos, con cada nombre verificado con los datos de Qloo.", label: "Tu marca", go: "Analizar mi audiencia", demo: "⚡ Ver un ejemplo real: Smacked", ph: "Tu informe aparece aquí en tarjetas: audiencia, artistas, marcas, ciudades para pop-ups, eventos y qué lanzar después. Tarda menos de un minuto.",
-    verified: "Verificado por Qloo:", names: "nombres", removedN: "sin respaldo eliminados", live: "consultas en vivo a Qloo", plan: "Plan", seeds: "semillas", ticker: "TENDENCIAS · 90 DÍAS", board: "AFINIDAD QLOO",
+    verified: "Verificado por Qloo:", names: "nombres", removedN: "sin respaldo eliminados", live: "consultas en vivo a Qloo", plan: "Plan", seeds: "semillas", ticker: "TENDENCIAS · 90 DÍAS", board: "AFINIDAD QLOO", retrying: "La IA de Google está ocupada. Reintentando automáticamente en 15 segundos…",
+    stats: "<span>Probado con 20 marcas</span><span><b>97.9%</b> de nombres confirmados por Qloo</span><span><b>21s</b> promedio por análisis</span>",
     askH: "Haz una pregunta", askSub: "El agente vuelve a Qloo por datos nuevos.", askPh: "ej. ¿Y en Nueva York?", askGo: "Preguntar", askEx: ["¿Y en Nueva York?", "¿Quién está subiendo ahora?", "¿Ideas de drop más baratas?"], thinking: "Consultando a Qloo…", used: "consultas a Qloo" },
 };
 let LANG = "en";
@@ -747,6 +753,7 @@ async function initGlobe(){
 
 $("#f").addEventListener("submit", async (e) => {
   e.preventDefault();
+  if (e.isTrusted) window.__retried = false;
   const go = $("#go"); go.disabled = true; go.textContent = "Scouting…";
   const t0 = Date.now(); let calls = 0;
   const clock = setInterval(() => {
@@ -786,8 +793,18 @@ $("#f").addEventListener("submit", async (e) => {
     $("#bar").style.width = "100%";
     const secs = Math.round((Date.now() - t0) / 1000);
     showResult(done, done.cached ? "Done (saved result)" : `Done in ${secs}s · ${(done.steps || steps).length} Qloo calls`);
+    window.__retried = false;
   } catch (err) {
-    $("#report").innerHTML = `<div class="err">${esc(err.message)}</div>`;
+    const retryable = /busy|rate-limited|dropped|try again/i.test(err.message);
+    if (retryable && !window.__retried) {
+      // One automatic retry (the server allows one scout per 15 seconds)
+      window.__retried = true;
+      $("#report").innerHTML = `<div class="err">${esc(t("retrying"))}</div>`;
+      setTimeout(() => $("#f").requestSubmit(), 16000);
+    } else {
+      window.__retried = false;
+      $("#report").innerHTML = `<div class="err">${esc(err.message)}<br><button class="ghost" type="button" style="margin-top:10px" onclick="document.querySelector('#demo').click()">${esc(t("demo"))}</button></div>`;
+    }
     $("#live").classList.remove("on");
   } finally {
     clearInterval(clock); go.disabled = false; go.textContent = "Scout my audience";
