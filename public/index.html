@@ -172,6 +172,42 @@
   .sheet .row{display:flex;gap:8px;margin-top:12px}
   .sheet .row a,.sheet .row button{flex:1;text-align:center;text-decoration:none}
   .yt{background:var(--accent);color:#fff;border:0;border-radius:12px;padding:13px;font:600 14px Inter,sans-serif;min-height:48px;display:grid;place-items:center}
+  .hdr-r{display:flex;align-items:center;gap:10px}
+  .lang{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--card)}
+  .lang button{border:0;background:transparent;color:var(--muted);font:700 12px 'JetBrains Mono',monospace;padding:7px 10px;cursor:pointer;min-height:34px}
+  .lang button.on{background:var(--accent);color:#fff}
+  .pitchline{font:600 14px/1.45 Inter,sans-serif;color:var(--ink);background:var(--card);border-left:3px solid var(--accent);border-radius:8px;padding:10px 12px;margin:-8px 0 20px;max-width:620px}
+  .proof{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .vbadge{display:inline-flex;align-items:center;gap:6px;background:#e3f1e8;color:#1f7a4d;border:1px solid #bfe0cb;border-radius:999px;padding:7px 12px;font:700 13px 'JetBrains Mono',monospace}
+  .vbadge .ck{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:50%;background:#1f7a4d;color:#fff;font-size:11px}
+  .qbadge{display:inline-flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 12px;font:600 12px 'JetBrains Mono',monospace;color:var(--muted)}
+  .qbadge b{color:var(--accent)}
+  .removed{font-size:12px;color:var(--muted)}
+  .results>*,.brief>*{min-width:0}
+  .chat form{background:none;border:0;padding:0;border-radius:0}
+  .ticker{max-width:100%;position:relative;overflow:hidden;background:#1d1617;color:#f2d4d0;border-radius:12px;height:38px;display:flex;align-items:center}
+  .ticker .lbl{position:relative;z-index:2;flex:none;background:var(--accent);color:#fff;font:700 11px 'JetBrains Mono',monospace;padding:0 10px;height:100%;display:grid;place-items:center;letter-spacing:.06em}
+  .ticker .run{display:flex;gap:28px;white-space:nowrap;padding-left:16px;animation:tick 22s linear infinite;font:700 13px 'JetBrains Mono',monospace}
+  .ticker:hover .run{animation-play-state:paused}
+  .ticker .up{color:#7fd69f} .ticker .down{color:#ff8f8f} .ticker .flat{color:#d8cfc4}
+  @keyframes tick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+  .trend{display:block;font:700 11px 'JetBrains Mono',monospace;margin-top:2px}
+  .trend.up{color:#1f7a4d} .trend.down{color:#c0262d} .trend.flat{color:var(--muted)}
+  .feed .dot.check{background:#1f7a4d;box-shadow:0 0 0 3px #e3f1e8}
+  .feed .dot.plan{background:var(--accent)}
+  .chat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .chat h3{font-family:'Archivo Black',sans-serif;font-size:16px;margin:0 0 4px}
+  .chat .sub{color:var(--muted);font-size:13px;margin:0 0 10px}
+  .chat .row{display:flex;gap:8px}
+  .chat input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);padding:12px;font:16px Inter,sans-serif;min-height:48px}
+  .chat .send{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:0 16px;font:700 14px Inter,sans-serif;min-height:48px;cursor:pointer}
+  .chat .send:disabled{opacity:.6}
+  .qa{margin-top:12px;display:grid;gap:10px}
+  .bubble{border-radius:12px;padding:10px 12px;font-size:15px}
+  .bubble.q{background:var(--soft);justify-self:end;max-width:85%;font-weight:600}
+  .bubble.a{background:var(--bg);border:1px solid var(--line)}
+  .bubble.a ul{padding-left:18px;margin:4px 0}
+  .bubble .used{display:block;margin-top:6px;font:11px 'JetBrains Mono',monospace;color:var(--muted)}
   @media (prefers-reduced-motion: reduce){ *{animation:none !important;transition:none !important} }
 </style>
 </head>
@@ -179,22 +215,23 @@
 <div class="wrap">
   <header>
     <span class="logo">DROP SCOUT</span>
-    <span class="powered">taste data by Qloo<br>agent by Gemini</span>
+    <span class="hdr-r"><span class="lang" role="group" aria-label="Language"><button type="button" data-lang="en" class="on">EN</button><button type="button" data-lang="es">ES</button></span><span class="powered" data-i18n="powered">taste data by Qloo<br>agent by Gemini</span></span>
   </header>
 
-  <h1>Know who your<br>drop is <em>for.</em></h1>
-  <p class="lede">Describe your brand. Drop Scout's agent queries Qloo's taste graph to find the artists, brands and cities your audience already loves, then turns that into what to drop next and where to sell it.</p>
+  <h1 data-i18n="h1">Know who your<br>drop is <em>for.</em></h1>
+  <p class="lede" data-i18n="lede">Describe your brand. Drop Scout's agent queries Qloo's taste graph to find the artists, brands and cities your audience already loves, then turns that into what to drop next and where to sell it.</p>
+  <p class="pitchline" data-i18n="pitch">Big brands pay agencies for taste research. Independent brands get it here: two sentences in, a full launch plan out in about 30 seconds, with every name verified against Qloo's taste data.</p>
 
   <form id="f">
-    <label for="brand">Your brand</label>
+    <label for="brand" data-i18n="label">Your brand</label>
     <textarea id="brand" maxlength="1200" required>Smacked: an independent streetwear brand from Humboldt County, California. Bold red box logo, a star "S" emblem, oversized hoodies, graphic tees, trucker hats and a new piped nylon tracksuit. West Coast hip-hop energy, skate and street culture.</textarea>
     <div class="chips" aria-label="Example brands">
       <button class="chip" type="button" data-ex="A Brooklyn knitwear label making chunky hand-dyed beanies and cardigans, cozy indie-folk vibe, sold at farmers markets.">Knitwear label</button>
       <button class="chip" type="button" data-ex="A Miami surf and skate brand with neon 80s graphics, boardshorts and tie-dye tees, synthwave and reggaeton playlists.">Surf brand</button>
       <button class="chip" type="button" data-ex="A Tokyo-inspired techwear label: black waterproof shells, cargo pants and utility vests, drill and ambient electronic music, cyberpunk anime aesthetic.">Techwear label</button>
     </div>
-    <button class="go" id="go" type="submit">Scout my audience</button>
-    <button class="demo" id="demo" type="button">⚡ See a real example: Smacked</button>
+    <button class="go" id="go" type="submit" data-i18n="go">Scout my audience</button>
+    <button class="demo" id="demo" type="button" data-i18n="demo">⚡ See a real example: Smacked</button>
   </form>
 
   <section class="live" id="live" aria-live="polite">
@@ -204,7 +241,7 @@
   </section>
 
   <div class="results">
-    <div class="brief" id="report"><div class="placeholder">Your brief shows up here as cards: audience, artists, brands, pop-up cities, event tie-ins and what to drop next. A scout takes under a minute.</div></div>
+    <div class="brief" id="report"><div class="placeholder" data-i18n="ph">Your brief shows up here as cards: audience, artists, brands, pop-up cities, event tie-ins and what to drop next. A scout takes under a minute.</div></div>
     <details class="trail" id="trail">
       <summary><span>Evidence trail <span id="trailCount"></span></span></summary>
       <div class="trail-body" id="steps"><p class="empty">Every Qloo call the agent makes is listed here, so you can see where each claim comes from.</p></div>
@@ -255,7 +292,11 @@ function renderBrief(src, entities = [], heat = []){
   };
   const cards = sections.map((s, i) => `<article class="sec" style="animation-delay:${i * 70}ms"><h2><span class="n">${i + 1}</span>${inline(s.title)}</h2>${tilesFor(s)}${body(s.lines)}</article>`).join("");
   const extras = `<div class="actions"><button class="ghost" type="button" id="copyBtn">Copy brief</button>${navigator.share ? '<button class="ghost" type="button" id="shareBtn">Share</button>' : ""}<button class="ghost" type="button" id="againBtn">Scout another brand</button></div>`;
-  $("#report").innerHTML = (cards || `<article class="sec">${body(src.split("\n"))}</article>`) + (tail.length ? `<p class="tools-used">${inline(tail.join(" "))}</p>` : "") + extras;
+  const proof = proofHtml();
+  const chat = `<section class="chat" id="chat"><h3>${t("askH")}</h3><p class="sub">${t("askSub")}</p><div class="chips" id="askChips">${t("askEx").map((q) => `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div><form class="row" id="askForm" style="margin-top:10px"><input id="askIn" maxlength="400" placeholder="${esc(t("askPh"))}" aria-label="${esc(t("askH"))}"><button class="send" id="askGo" type="submit">${t("askGo")}</button></form><div class="qa" id="qa"></div></section>`;
+  $("#report").innerHTML = proof + '<div id="tickerSlot"></div>' + (cards || `<article class="sec">${body(src.split("\n"))}</article>`) + (tail.length ? `<p class="tools-used">${inline(tail.join(" "))}</p>` : "") + chat + extras;
+  $("#askForm").addEventListener("submit", (ev) => { ev.preventDefault(); ask($("#askIn").value); });
+  document.querySelectorAll("#askChips [data-q]").forEach((b) => b.addEventListener("click", () => ask(b.dataset.q)));
   $("#copyBtn").onclick = async () => { try { await navigator.clipboard.writeText(lastReport); toast("Brief copied"); } catch { toast("Couldn't copy"); } };
   if ($("#shareBtn")) $("#shareBtn").onclick = () => navigator.share({ title: "Drop Scout brief", text: lastReport }).catch(() => {});
   document.querySelectorAll(".tile").forEach((t) => t.addEventListener("click", () => openSheet(ENT[+t.dataset.i])));
@@ -263,6 +304,7 @@ function renderBrief(src, entities = [], heat = []){
   prefetchTracks();
   if (HEAT.length && $("#globe")) initGlobe();
   loadShows();
+  loadTrends();
   $("#againBtn").onclick = () => { $("#brand").focus(); $("#brand").select(); window.scrollTo({ top: $("#f").offsetTop - 12, behavior: "smooth" }); };
 }
 
@@ -319,7 +361,7 @@ function matchBadge(e){
 }
 function tilesFor(sec){
   const t = sec.title.toLowerCase();
-  const type = /artist|music/.test(t) ? "artist" : /brand/.test(t) ? "brand" : /pop up|pop-up|where/.test(t) ? "place" : /tour|event/.test(t) ? "artist" : null;
+  const type = /artist|music|músic/.test(t) ? "artist" : /brand|marca/.test(t) ? "brand" : /pop up|pop-up|where|dónde|donde/.test(t) ? "place" : /tour|event|gira/.test(t) ? "artist" : null;
   if (!type) return "";
   if (type === "place" && !ENT.some((e) => e.type === "place")) {
     for (const c of citiesFrom(sec.lines)) ENT.push({ name: c, type: "place", image: null, tool: "qloo_where_popular", wikiLookup: true });
@@ -330,7 +372,7 @@ function tilesFor(sec){
   const fold = (x) => String(x).toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
   const ftext = fold(text);
   let picks = ENT.map((e, i) => ({ ...e, i })).filter((e) => e.type === type && ftext.includes(fold(e.name)));
-  if (!picks.length && /tour|event/.test(t)) return "";
+  if (!picks.length && /tour|event|gira/.test(t)) return "";
   if (!picks.length && type === "place") picks = ENT.map((e, i) => ({ ...e, i })).filter((e) => e.type === type).slice(0, 8);
   if (!picks.length) return globe;
   return globe + `<div class="tiles">${picks.slice(0, 10).map((e) => `<button type="button" class="tile ${e.type}" data-i="${e.i}"${e.type === "place" && !e.image ? " data-wiki" : ""} aria-label="${esc(e.name)}"><span class="pic">${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">` : e.type === "place" ? PIN : EQ + `<span class="ini">${esc(initials(e.name))}</span>`}${e.type === "artist" ? '<span class="play">▶</span>' : ""}</span><span class="nm">${esc(e.name)}</span>${matchBadge(e)}</button>`).join("")}</div>`;
@@ -401,7 +443,7 @@ let SHOWS = [];
 const brandName = () => { const d = $("#brand").value.trim(); const m = d.match(/^([^:.,–-]{2,40})[:.,–-]/); return (m ? m[1] : d.split(/\s+/).slice(0, 3).join(" ")).trim(); };
 const fmtDate = (d) => { const x = new Date(d + "T12:00:00"); return isNaN(x) ? d : x.toLocaleDateString("en-US", { month: "short", day: "numeric" }); };
 async function loadShows(){
-  const sec = [...document.querySelectorAll(".sec")].find((a) => /tour|event/i.test(a.querySelector("h2")?.textContent || ""));
+  const sec = [...document.querySelectorAll(".sec")].find((a) => /tour|event|gira/i.test(a.querySelector("h2")?.textContent || ""));
   if (!sec) return;
   const text = sec.textContent.toLowerCase();
   const artists = ENT.filter((e) => e.type === "artist").sort((a, b) => (text.includes(b.name.toLowerCase()) - text.includes(a.name.toLowerCase())) || ((b.affinity || 0) - (a.affinity || 0))).slice(0, 6).map((e) => ({ name: e.name, affinity: e.affinity }));
@@ -458,6 +500,88 @@ function addShowsToGlobe(){
     GLOBE.on("click", "show", (ev) => { const s = SHOWS[ev.features[0].properties.i]; GLOBE.flyTo({ center: [s.lon, s.lat], zoom: 12, speed: 1.4 }); openPitch(s); });
   };
   GLOBE.isStyleLoaded() ? go() : GLOBE.once("idle", go);
+}
+
+// ---- language ----
+const T = {
+  en: { powered: "taste data by Qloo<br>agent by Gemini", h1: "Know who your<br>drop is <em>for.</em>", lede: "Describe your brand. Drop Scout's agent queries Qloo's taste graph to find the artists, brands and cities your audience already loves, then turns that into what to drop next and where to sell it.", pitch: "Big brands pay agencies for taste research. Independent brands get it here: two sentences in, a full launch plan out in about 30 seconds, with every name verified against Qloo's taste data.", label: "Your brand", go: "Scout my audience", demo: "⚡ See a real example: Smacked", ph: "Your brief shows up here as cards: audience, artists, brands, pop-up cities, event tie-ins and what to drop next. A scout takes under a minute.",
+    verified: "Verified by Qloo:", names: "names", removedN: "unbacked removed", live: "live Qloo calls", plan: "Plan", seeds: "seeds", ticker: "TRENDING · 90 DAYS",
+    askH: "Ask a follow-up", askSub: "The agent goes back to Qloo for new data.", askPh: "e.g. What about New York?", askGo: "Ask", askEx: ["What about New York?", "Who's rising right now?", "Cheaper drop ideas?"], thinking: "Asking Qloo…", used: "Qloo calls" },
+  es: { powered: "datos de gusto: Qloo<br>agente: Gemini", h1: "Descubre para quién<br>es tu <em>drop.</em>", lede: "Describe tu marca. El agente de Drop Scout consulta el grafo de gustos de Qloo para encontrar los artistas, marcas y ciudades que tu audiencia ya ama, y lo convierte en qué lanzar después y dónde venderlo.", pitch: "Las grandes marcas pagan agencias para investigar gustos. Las marcas independientes lo tienen aquí: dos frases de entrada, un plan de lanzamiento completo en unos 30 segundos, con cada nombre verificado con los datos de Qloo.", label: "Tu marca", go: "Analizar mi audiencia", demo: "⚡ Ver un ejemplo real: Smacked", ph: "Tu informe aparece aquí en tarjetas: audiencia, artistas, marcas, ciudades para pop-ups, eventos y qué lanzar después. Tarda menos de un minuto.",
+    verified: "Verificado por Qloo:", names: "nombres", removedN: "sin respaldo eliminados", live: "consultas en vivo a Qloo", plan: "Plan", seeds: "semillas", ticker: "TENDENCIAS · 90 DÍAS",
+    askH: "Haz una pregunta", askSub: "El agente vuelve a Qloo por datos nuevos.", askPh: "ej. ¿Y en Nueva York?", askGo: "Preguntar", askEx: ["¿Y en Nueva York?", "¿Quién está subiendo ahora?", "¿Ideas de drop más baratas?"], thinking: "Consultando a Qloo…", used: "consultas a Qloo" },
+};
+let LANG = "en";
+try { if (localStorage.getItem("ds-lang") === "es") LANG = "es"; } catch {}
+const t = (k) => (T[LANG] && T[LANG][k]) ?? T.en[k];
+function applyLang(){
+  document.documentElement.lang = LANG;
+  document.querySelectorAll("[data-i18n]").forEach((el) => { el.innerHTML = t(el.dataset.i18n); });
+  document.querySelectorAll(".lang [data-lang]").forEach((b) => b.classList.toggle("on", b.dataset.lang === LANG));
+}
+document.querySelectorAll(".lang [data-lang]").forEach((b) => b.addEventListener("click", () => {
+  LANG = b.dataset.lang; try { localStorage.setItem("ds-lang", LANG); } catch {}
+  applyLang(); toast(LANG === "es" ? "Español: el próximo análisis saldrá en español" : "English");
+}));
+applyLang();
+
+// ---- proof badges ----
+function proofHtml(){
+  const v = META.verification;
+  const vb = v ? `<span class="vbadge"><span class="ck">✓</span>${t("verified")} ${v.verified}/${v.verified} ${t("names")}</span>` : "";
+  const qb = META.calls ? `<span class="qbadge">Powered by <b>Qloo</b> · ${META.calls} ${t("live")}${META.secs ? " · " + META.secs + "s" : ""}</span>` : "";
+  const rm = v && v.removed && v.removed.length ? `<span class="removed">${v.removed.length} ${t("removedN")}: ${esc(v.removed.slice(0, 4).join(", "))}</span>` : "";
+  return vb || qb ? `<div class="proof">${vb}${qb}${rm}</div>` : "";
+}
+
+// ---- trend ticker (Qloo trends) ----
+async function loadTrends(){
+  const names = ENT.filter((e) => e.type === "artist" && document.querySelector(`.tile.artist[data-i="${ENT.indexOf(e)}"]`)).slice(0, 5).map((e) => e.name);
+  if (!names.length) return;
+  let d; try { d = await (await fetch("/api/trends", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artists: names }) })).json(); } catch { return; }
+  const tr = (d.trends || []).filter((x) => x.name);
+  if (!tr.length || !$("#tickerSlot")) return;
+  const item = (x) => `<span class="${x.dir}">${esc(x.name.toUpperCase())} ${x.dir === "up" ? "▲" : x.dir === "down" ? "▼" : "■"} ${x.change > 0 ? "+" : ""}${x.change}%</span>`;
+  const run = tr.map(item).join("");
+  $("#tickerSlot").innerHTML = `<div class="ticker" aria-label="Qloo popularity trend, last 90 days"><span class="lbl">${t("ticker")}</span><div class="run">${run}${run}${run}${run}</div></div>`;
+  for (const x of tr) {
+    const i = ENT.findIndex((e) => e.type === "artist" && fold2(e.name) === fold2(x.name));
+    document.querySelectorAll(`.tile[data-i="${i}"] .nm`).forEach((nm) => { if (!nm.nextElementSibling?.classList.contains("trend")) nm.insertAdjacentHTML("afterend", `<span class="trend ${x.dir}">${x.dir === "up" ? "▲" : x.dir === "down" ? "▼" : "■"} ${x.change > 0 ? "+" : ""}${x.change}%</span>`); });
+  }
+}
+const fold2 = (x) => String(x).toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+
+function md(src){
+  let html = "", inList = false;
+  for (const raw of String(src).split("\n")) {
+    const line = raw.trimEnd(); if (!line.trim()) continue;
+    const li = line.match(/^\s*[-*•]\s+(.*)/) || line.match(/^\s*\d+[.)]\s+(.*)/);
+    if (li) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${inline(li[1])}</li>`; continue; }
+    if (inList) { html += "</ul>"; inList = false; }
+    const h = line.match(/^#{1,4}\s+(.*)/);
+    html += h ? `<p><strong>${inline(h[1])}</strong></p>` : `<p>${inline(line)}</p>`;
+  }
+  return html + (inList ? "</ul>" : "");
+}
+// ---- follow-up questions ----
+async function ask(q){
+  q = String(q || "").trim(); if (q.length < 3) return;
+  const qa = $("#qa"); const go = $("#askGo"); go.disabled = true;
+  qa.insertAdjacentHTML("beforeend", `<div class="bubble q">${esc(q)}</div><div class="bubble a" id="pending">${t("thinking")}</div>`);
+  $("#askIn").value = "";
+  const sec = (re) => [...document.querySelectorAll(".sec")].find((a) => re.test(a.querySelector("h2")?.textContent || ""));
+  const namesIn = (el) => el ? [...el.querySelectorAll("li strong")].map((x) => x.textContent) : [];
+  const payload = { brand: $("#brand").value, question: q, lang: LANG, artists: namesIn(sec(/artist|músic/i)), brands: namesIn(sec(/brand|marca/i)), cities: (META.cities || []).map((c) => c.name).concat(namesIn(sec(/pop|dónde/i))) };
+  let d; try { d = await (await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })).json(); } catch { d = { error: "Network error" }; }
+  const p = $("#pending"); if (p) p.removeAttribute("id");
+  if (d.error) { p.textContent = d.error; go.disabled = false; return; }
+  const newTiles = (d.entities || []).filter((e) => e.image && (d.answer || "").toLowerCase().includes(e.name.toLowerCase())).slice(0, 8);
+  const start = ENT.length; ENT.push(...newTiles);
+  const tiles = newTiles.length ? `<div class="tiles">${newTiles.map((e, k) => `<button type="button" class="tile ${e.type}" data-i="${start + k}" aria-label="${esc(e.name)}"><span class="pic"><img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">${e.type === "artist" ? '<span class="play">▶</span>' : ""}</span><span class="nm">${esc(e.name)}</span>${matchBadge(e)}</button>`).join("")}</div>` : "";
+  p.innerHTML = tiles + md(d.answer || "") + `<span class="used">${(d.steps || []).length} ${t("used")}</span>`;
+  p.querySelectorAll(".tile").forEach((tl) => tl.addEventListener("click", () => openSheet(ENT[+tl.dataset.i])));
+  ENT.filter((e) => e.type === "artist" && e.track === undefined).slice(-8).forEach(async (e) => { e.track = await findTrack(e.name); });
+  go.disabled = false;
 }
 
 function closeSheet(){
@@ -517,6 +641,12 @@ function renderTrail(steps){
   }).join("") : '<p class="empty">No Qloo calls were made.</p>';
 }
 
+function addNote(cls, text){
+  const li = document.createElement("li");
+  li.innerHTML = `<span class="dot ${cls}"></span><span><span class="what">${esc(text)}</span></span>`;
+  $("#feed").prepend(li);
+  while ($("#feed").children.length > 7) $("#feed").lastChild.remove();
+}
 function addFeed(step){
   const li = document.createElement("li");
   li.innerHTML = `<span class="dot ${step.status === "ok" ? "" : "warn"}"></span><span><span class="what">${esc(LABELS[step.tool] || step.tool)}</span> <span class="arg">${esc(argText(step.args)).slice(0, 90)}</span></span>`;
@@ -527,7 +657,9 @@ function addFeed(step){
 document.querySelectorAll("[data-ex]").forEach((b) => b.addEventListener("click", () => { $("#brand").value = b.dataset.ex; toast("Example loaded"); }));
 if (isDesktop()) $("#trail").open = true;
 
+let META = {};
 function showResult(done, phase){
+  META = { verification: done.verification, calls: (done.steps || []).length, secs: done.secs, cities: done.cities || [] };
   $("#bar").style.width = "100%";
   renderBrief(done.report || "No brief was produced.", done.entities || [], done.heat || []);
   renderTrail(done.steps || []);
@@ -619,7 +751,7 @@ $("#f").addEventListener("submit", async (e) => {
   if (!isDesktop()) $("#live").scrollIntoView({ behavior: "smooth", block: "start" });
   const steps = [];
   try {
-    const r = await fetch("/api/scout", { method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/x-ndjson" }, body: JSON.stringify({ brand: $("#brand").value }) });
+    const r = await fetch("/api/scout", { method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/x-ndjson" }, body: JSON.stringify({ brand: $("#brand").value, lang: LANG }) });
     if (!r.ok && !(r.headers.get("content-type") || "").includes("ndjson")) { const d = await r.json().catch(() => ({})); throw new Error(d.error || "Something went wrong."); }
     const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = ""; let done = null;
     while (true) {
@@ -632,6 +764,9 @@ $("#f").addEventListener("submit", async (e) => {
         const ev = JSON.parse(line);
         if (ev.type === "phase") $("#phase").textContent = ev.text + "…";
         else if (ev.type === "step") { calls++; steps.push(ev.step); addFeed(ev.step); renderTrail(steps); $("#phase").textContent = (LABELS[ev.step.tool] || "Querying Qloo") + "…"; }
+        else if (ev.type === "plan") addNote("plan", `${t("plan")}: ${(ev.plan.genres || []).join(", ")} · ${t("seeds")} ${(ev.plan.reference_artists || []).join(", ")}`);
+        else if (ev.type === "check") { addNote("check", ev.text + (ev.dropped?.length ? ` (${ev.dropped.slice(0, 3).join(", ")}…)` : "")); }
+        else if (ev.type === "verify") addNote("check", `${t("verified")} ${ev.verification.verified}/${ev.verification.verified} ${t("names")}${ev.verification.removed?.length ? ` · ${ev.verification.removed.length} ${t("removedN")}` : ""}`);
         else if (ev.type === "error") throw new Error(ev.error);
         else if (ev.type === "done") done = ev;
       }
