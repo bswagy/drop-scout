@@ -68,6 +68,8 @@ async function callQloo(name, args) {
 // Resolve names to IDs first with qloo_describe (cached), so recommend/rank calls succeed on the first try.
 const UUID_RE = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/i;
 const idCache = new Map();
+const nameById = new Map();   // entity id -> display name, for readable progress and evidence trail
+const displayArgs = (args) => Object.fromEntries(Object.entries(args || {}).map(([k, v]) => [k, Array.isArray(v) ? v.map((x) => nameById.get(x) || x) : v]));
 async function resolveName(name, type) {
   const key = `${type || ""}:${String(name).toLowerCase()}`;
   if (idCache.has(key)) return idCache.get(key);
@@ -79,6 +81,7 @@ async function resolveName(name, type) {
     if (id && !UUID_RE.test(id)) id = null;
   } catch {}
   idCache.set(key, id);
+  if (id) nameById.set(id, name);
   return id;
 }
 async function resolveArgs(tool, args = {}) {
@@ -303,7 +306,8 @@ function collectEntities(results, tool, args, out) {
     const key = name.toLowerCase();
     if (out.has(key)) continue;
     const aff = Number(r.affinity ?? r.query?.affinity ?? NaN);
-    out.set(key, { name: name.slice(0, 80), type, image: findImage(r), youtube: findYoutube(r), tool, affinity: Number.isFinite(aff) ? Math.round(aff * 1000) / 1000 : null, popularity: Number.isFinite(+r.popularity) ? Math.round(r.popularity * 1000) / 1000 : null });
+    if (UUID_RE.test(String(r.entity_id || ""))) nameById.set(r.entity_id, name);
+    out.set(key, { id: UUID_RE.test(String(r.entity_id || "")) ? r.entity_id : undefined, name: name.slice(0, 80), type, image: findImage(r), youtube: findYoutube(r), tool, affinity: Number.isFinite(aff) ? Math.round(aff * 1000) / 1000 : null, popularity: Number.isFinite(+r.popularity) ? Math.round(r.popularity * 1000) / 1000 : null });
   }
 }
 
@@ -385,18 +389,19 @@ function seriesOf(r) {
   if (best.key === "rank") [first, last] = [last, first];   // lower rank = more popular
   return { first, last, key: best.key, points: nums.length };
 }
-async function findTrends(names) {
-  const list = names.filter((n) => typeof n === "string").slice(0, 5);
-  const key = list.map(norm).join("|");
+async function findTrends(items) {
+  const list = items.map((x) => (typeof x === "string" ? { name: x } : x)).filter((x) => x && typeof x.name === "string").slice(0, 5);
+  const key = list.map((x) => norm(x.name)).join("|");
   const hit = trendCache.get(key);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.out;
-  const ids = await Promise.all(list.map((n) => resolveName(n, "artist")));
-  const pairs = list.map((n, i) => [n, ids[i]]).filter(([, id]) => id);
+  const ids = await Promise.all(list.map((x) => (UUID_RE.test(String(x.id || "")) ? x.id : resolveName(x.name, "artist"))));
+  const pairs = list.map((x, i) => [x.name, ids[i]]).filter(([, id]) => id);
+  console.log(`[trends] ${list.length} artists, ${pairs.length} with ids`);
   if (!pairs.length) return { trends: [] };
   const end = new Date(), start = new Date(Date.now() - 90 * 864e5);
   const iso = (d) => d.toISOString().slice(0, 10);
   const env = await callQloo("qloo_trends", { entities: pairs.map(([, id]) => id), entity_type: "artist", start_date: iso(start), end_date: iso(end) }).catch(() => ({ results: [] }));
-  if ((env.results || [])[0]) console.log("[shape] qloo_trends:", JSON.stringify(env.results[0]).slice(0, 700));
+  console.log("[shape] qloo_trends:", env.status, String(env.summary || "").slice(0, 160), JSON.stringify((env.results || [])[0] || {}).slice(0, 700));
   const trends = [];
   (env.results || []).forEach((r, i) => {
     const id = r.entity_id || r.id || r.entity?.entity_id;
@@ -499,10 +504,10 @@ async function qlooStep(tool, args, { steps, entities, heat, emit }) {
     console.error("qloo call failed", tool, e.message);
     env = { status: "error", summary: "Qloo call failed", results: [] };
   }
-  const step = { tool, args, status: env.status, summary: env.summary, count: env.result_count ?? (env.results || []).length };
+  collectEntities(env.results || [], tool, args, entities);
+  const step = { tool, args: displayArgs(args), status: env.status, summary: env.summary, count: env.result_count ?? (env.results || []).length };
   steps.push(step);
   emit({ type: "step", step });
-  collectEntities(env.results || [], tool, args, entities);
   if (tool === "qloo_where_popular") collectHeat(env.results, args, heat);
   return { env, step };
 }
