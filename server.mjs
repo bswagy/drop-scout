@@ -185,6 +185,9 @@ async function gemini(contents, { tools = true, run = {}, system = SYSTEM_PROMPT
   const base = [...healthy, ...GEMINI_MODELS.filter((m) => !healthy.includes(m))];
   const order = run.model ? [run.model, ...base.filter((m) => m !== run.model)] : base;
   let last = 0;
+  // Two passes over the model list: if Google is briefly overloaded on every model, wait a moment and try once more.
+  for (let pass = 0; pass < 2; pass++) {
+  if (pass === 1) { console.log("[step] gemini: all models busy, retrying after a short pause"); await sleep(3500); }
   for (const model of order) {
     for (let attempt = 0; attempt < 2; attempt++) {
       const res = await geminiOnce(model, body, timeoutMs);
@@ -196,6 +199,7 @@ async function gemini(contents, { tools = true, run = {}, system = SYSTEM_PROMPT
       if (res.status === 404 || res.status === 504 || res.status === 503) break;   // missing, slow or overloaded: go straight to the next model
       if (attempt === 0) await sleep(1500);   // brief backoff, then one retry
     }
+  }
   }
   throw new PublicError(last === 429 ? "The AI model is rate-limited right now. Try again in a minute." : "The AI model is busy right now. Try again in a minute.");
 }
