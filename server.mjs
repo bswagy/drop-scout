@@ -401,9 +401,17 @@ async function findTrends(items) {
   const end = new Date(), start = new Date(Date.now() - 90 * 864e5);
   const iso = (d) => d.toISOString().slice(0, 10);
   const env = await callQloo("qloo_trends", { entities: pairs.map(([, id]) => id), entity_type: "artist", start_date: iso(start), end_date: iso(end) }).catch(() => ({ results: [] }));
-  console.log("[shape] qloo_trends:", env.status, String(env.summary || "").slice(0, 160), JSON.stringify((env.results || [])[0] || {}).slice(0, 700));
+  console.log("[shape] qloo_trends keys:", Object.keys(env).join(","), "|", JSON.stringify(env).replace(/https?:\/\/\S+?"/g, '"URL"').slice(0, 1500));
+  // Items may sit in results or in another array on the envelope; take the first non-empty array of objects.
+  let rows = (env.results || []).filter((x) => x && typeof x === "object" && Object.keys(x).length);
+  if (!rows.length) for (const v of Object.values(env)) { if (Array.isArray(v) && v.length && typeof v[0] === "object") { rows = v; break; } if (v && typeof v === "object" && !Array.isArray(v)) for (const w of Object.values(v)) if (Array.isArray(w) && w.length && typeof w[0] === "object") { rows = w; break; } if (rows.length) break; }
+  // If the series are one flat list of points tagged with entity ids, group them per entity.
+  if (rows.length && !rows.some((it) => seriesOf(it)) && rows[0] && (rows[0].entity_id || rows[0].id)) {
+    const by = new Map(); for (const it of rows) { const k = it.entity_id || it.id; if (!by.has(k)) by.set(k, []); by.get(k).push(it); }
+    rows = [...by.entries()].map(([k, pts]) => ({ entity_id: k, points: pts }));
+  }
   const trends = [];
-  (env.results || []).forEach((r, i) => {
+  rows.forEach((r, i) => {
     const id = r.entity_id || r.id || r.entity?.entity_id;
     const name = r.name || r.entity?.name || (pairs.find(([, x]) => x === id) || pairs[i] || [])[0];
     const sr = seriesOf(r);
@@ -669,7 +677,7 @@ const cache = new Map();          // brand text -> { at, result }
 const lastHit = new Map();        // ip -> timestamp
 let running = 0;
 
-const MIME = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".ico": "image/x-icon" };
+const MIME = { ".html": "text/html; charset=utf-8", ".css": "text/css", ".js": "text/javascript", ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".ico": "image/x-icon", ".json": "application/json; charset=utf-8" };
 
 function send(res, code, body, type = "application/json") {
   res.writeHead(code, { "Content-Type": type, "Cache-Control": "no-store" });
