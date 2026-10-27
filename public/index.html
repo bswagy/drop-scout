@@ -505,10 +505,10 @@ function addShowsToGlobe(){
 // ---- language ----
 const T = {
   en: { powered: "taste data by Qloo<br>agent by Gemini", h1: "Know who your<br>drop is <em>for.</em>", lede: "Describe your brand. Drop Scout's agent queries Qloo's taste graph to find the artists, brands and cities your audience already loves, then turns that into what to drop next and where to sell it.", pitch: "Big brands pay agencies for taste research. Independent brands get it here: two sentences in, a full launch plan out in about 30 seconds, with every name verified against Qloo's taste data.", label: "Your brand", go: "Scout my audience", demo: "⚡ See a real example: Smacked", ph: "Your brief shows up here as cards: audience, artists, brands, pop-up cities, event tie-ins and what to drop next. A scout takes under a minute.",
-    verified: "Verified by Qloo:", names: "names", removedN: "unbacked removed", live: "live Qloo calls", plan: "Plan", seeds: "seeds", ticker: "TRENDING · 90 DAYS",
+    verified: "Verified by Qloo:", names: "names", removedN: "unbacked removed", live: "live Qloo calls", plan: "Plan", seeds: "seeds", ticker: "TRENDING · 90 DAYS", board: "QLOO MATCH BOARD",
     askH: "Ask a follow-up", askSub: "The agent goes back to Qloo for new data.", askPh: "e.g. What about New York?", askGo: "Ask", askEx: ["What about New York?", "Who's rising right now?", "Cheaper drop ideas?"], thinking: "Asking Qloo…", used: "Qloo calls" },
   es: { powered: "datos de gusto: Qloo<br>agente: Gemini", h1: "Descubre para quién<br>es tu <em>drop.</em>", lede: "Describe tu marca. El agente de Drop Scout consulta el grafo de gustos de Qloo para encontrar los artistas, marcas y ciudades que tu audiencia ya ama, y lo convierte en qué lanzar después y dónde venderlo.", pitch: "Las grandes marcas pagan agencias para investigar gustos. Las marcas independientes lo tienen aquí: dos frases de entrada, un plan de lanzamiento completo en unos 30 segundos, con cada nombre verificado con los datos de Qloo.", label: "Tu marca", go: "Analizar mi audiencia", demo: "⚡ Ver un ejemplo real: Smacked", ph: "Tu informe aparece aquí en tarjetas: audiencia, artistas, marcas, ciudades para pop-ups, eventos y qué lanzar después. Tarda menos de un minuto.",
-    verified: "Verificado por Qloo:", names: "nombres", removedN: "sin respaldo eliminados", live: "consultas en vivo a Qloo", plan: "Plan", seeds: "semillas", ticker: "TENDENCIAS · 90 DÍAS",
+    verified: "Verificado por Qloo:", names: "nombres", removedN: "sin respaldo eliminados", live: "consultas en vivo a Qloo", plan: "Plan", seeds: "semillas", ticker: "TENDENCIAS · 90 DÍAS", board: "AFINIDAD QLOO",
     askH: "Haz una pregunta", askSub: "El agente vuelve a Qloo por datos nuevos.", askPh: "ej. ¿Y en Nueva York?", askGo: "Preguntar", askEx: ["¿Y en Nueva York?", "¿Quién está subiendo ahora?", "¿Ideas de drop más baratas?"], thinking: "Consultando a Qloo…", used: "consultas a Qloo" },
 };
 let LANG = "en";
@@ -540,7 +540,8 @@ async function loadTrends(){
   if (!names.length) return;
   let d; try { d = await (await fetch("/api/trends", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ artists: names }) })).json(); } catch { return; }
   const tr = (d.trends || []).filter((x) => x.name);
-  if (!tr.length || !$("#tickerSlot")) return;
+  if (!$("#tickerSlot")) return;
+  if (!tr.length) return matchBoard();
   const item = (x) => `<span class="${x.dir}">${esc(x.name.toUpperCase())} ${x.dir === "up" ? "▲" : x.dir === "down" ? "▼" : "■"} ${x.change > 0 ? "+" : ""}${x.change}%</span>`;
   const run = tr.map(item).join("");
   $("#tickerSlot").innerHTML = `<div class="ticker" aria-label="Qloo popularity trend, last 90 days"><span class="lbl">${t("ticker")}</span><div class="run">${run}${run}${run}${run}</div></div>`;
@@ -548,6 +549,15 @@ async function loadTrends(){
     const i = ENT.findIndex((e) => e.type === "artist" && fold2(e.name) === fold2(x.name));
     document.querySelectorAll(`.tile[data-i="${i}"] .nm`).forEach((nm) => { if (!nm.nextElementSibling?.classList.contains("trend")) nm.insertAdjacentHTML("afterend", `<span class="trend ${x.dir}">${x.dir === "up" ? "▲" : x.dir === "down" ? "▼" : "■"} ${x.change > 0 ? "+" : ""}${x.change}%</span>`); });
   }
+}
+// Fallback when Qloo has no trend points: a ticker of live Qloo match scores for the picks in the brief.
+function matchBoard(){
+  const picks = ENT.filter((e) => (e.type === "artist" || e.type === "brand") && e.affinity > 0 && document.querySelector(`.tile[data-i="${ENT.indexOf(e)}"]`));
+  const seen = new Set(); const uniq = picks.filter((e) => !seen.has(e.name) && seen.add(e.name)).slice(0, 12);
+  if (!uniq.length) return;
+  const item = (e) => `<span class="up">${esc(e.name.toUpperCase())} ✓ ${Math.round(e.affinity * 100)}%</span>`;
+  const run = uniq.map(item).join("");
+  $("#tickerSlot").innerHTML = `<div class="ticker" aria-label="Qloo match scores"><span class="lbl">${t("board")}</span><div class="run">${run}${run}${run}</div></div>`;
 }
 const fold2 = (x) => String(x).toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 
