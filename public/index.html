@@ -890,16 +890,21 @@ async function initGlobe(){
   try { await loadMapLibre(); } catch { el.innerHTML = '<span class="globe-tip">Map unavailable</span>'; return; }
   if (!document.body.contains(el)) return;
   const pts = HEAT.slice(0, 12);
-  const map = GLOBE = new maplibregl.Map({ container: el, style: "https://tiles.openfreemap.org/styles/liberty", center: [pts[0].lon - 40, 25], zoom: 0.9, attributionControl: { compact: true }, cooperativeGestures: true });
-  let spinning = true;
-  const spin = () => { if (!spinning) return; const c = map.getCenter(); c.lng += 0.6; map.easeTo({ center: c, duration: 100, easing: (t) => t }); };
+  // Open facing the audience: centered on Qloo's hot spots, then ease in so every dot is in view.
+  const lons = pts.map((p) => p.lon), lats = pts.map((p) => p.lat);
+  const mid = [(Math.min(...lons) + Math.max(...lons)) / 2, (Math.min(...lats) + Math.max(...lats)) / 2];
+  const bounds = [[Math.min(...lons) - 4, Math.min(...lats) - 4], [Math.max(...lons) + 4, Math.max(...lats) + 4]];
+  const home = () => map.fitBounds(bounds, { padding: 36, maxZoom: 4.2, duration: 2200, essential: true });
+  const map = GLOBE = new maplibregl.Map({ container: el, style: "https://tiles.openfreemap.org/styles/liberty", center: mid, zoom: 1.1, attributionControl: { compact: true }, cooperativeGestures: true });
+  let spinning = false;
+  const spin = () => {};
   map.on("style.load", () => {
     try { map.setProjection({ type: "globe" }); } catch {}
     map.addSource("heat", { type: "geojson", data: { type: "FeatureCollection", features: pts.map((p, i) => ({ type: "Feature", properties: { i, a: p.affinity }, geometry: { type: "Point", coordinates: [p.lon, p.lat] } })) } });
     map.addLayer({ id: "glow", type: "circle", source: "heat", paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 10, 6, 26, 11, 60], "circle-color": "#8c2f39", "circle-opacity": 0.35, "circle-blur": 1 } });
     map.addLayer({ id: "dot", type: "circle", source: "heat", paint: { "circle-radius": ["interpolate", ["linear"], ["zoom"], 0, 4, 6, 7, 11, 12], "circle-color": "#8c2f39", "circle-stroke-color": "#f2d4d0", "circle-stroke-width": 2 } });
-    map.on("moveend", spin); spin();
     addShowsToGlobe();
+    setTimeout(home, 350);
   });
   const stop = () => { spinning = false; };
   map.on("mousedown", stop); map.on("touchstart", stop); map.on("wheel", stop);
@@ -917,7 +922,7 @@ async function initGlobe(){
     popup = new maplibregl.Popup({ offset: 14, closeButton: false, maxWidth: "220px" }).setLngLat([p.lon, p.lat])
       .setHTML(`<div class="gp">${w ? `<img src="${esc(w.thumb)}" alt="" referrerpolicy="no-referrer">` : ""}<div><b>${esc(name || "Hot spot")}</b><small>${p.affinity ? Math.round(p.affinity * 100) + "% taste match · " : ""}Qloo where-popular</small>${w ? '<br><small>photo: Wikipedia</small>' : ""}</div></div>`).addTo(map);
   });
-  $("#globeBack").onclick = () => { popup?.remove(); $("#globeBack").style.display = "none"; map.flyTo({ center: [pts[0].lon - 40, 25], zoom: 0.9, speed: 1.6 }); };
+  $("#globeBack").onclick = () => { popup?.remove(); $("#globeBack").style.display = "none"; home(); };
 }
 
 $("#f").addEventListener("submit", async (e) => {
