@@ -6,6 +6,21 @@
 <title>Drop Scout</title>
 <meta name="description" content="Taste intelligence for small streetwear brands. Powered by Qloo.">
 <meta name="theme-color" content="#f8f0dc">
+<link rel="icon" type="image/png" href="/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Drop Scout">
+<meta property="og:title" content="Drop Scout: know who your drop is for">
+<meta property="og:description" content="A Qloo-powered agent for small streetwear brands: which artists and brands your fans love, where to pop up, and whether your next product idea fits. Every name verified by Qloo.">
+<meta property="og:url" content="https://drop-scout.onrender.com/">
+<meta property="og:image" content="https://drop-scout.onrender.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Drop Scout: a product idea scored 79%, the best city to drop it, and Supreme ranked #1 for your fans.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Drop Scout: know who your drop is for">
+<meta name="twitter:description" content="A Qloo-powered agent for small streetwear brands. Every name verified by Qloo.">
+<meta name="twitter:image" content="https://drop-scout.onrender.com/og.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css">
 <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -349,7 +364,7 @@ function renderBrief(src, entities = [], heat = []){
   const proof = proofHtml();
   const chat = `<section class="chat" id="chat"><h3>${t("askH")}</h3><p class="sub">${t("askSub")}</p><div class="chips" id="askChips">${t("askEx").map((q) => `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div><form class="row" id="askForm" style="margin-top:10px"><input id="askIn" maxlength="400" placeholder="${esc(t("askPh"))}" aria-label="${esc(t("askH"))}"><button class="send" id="askGo" type="submit">${t("askGo")}</button></form><div class="qa" id="qa"></div></section>`;
   const ideaCard = `<section class="idea" id="ideaBox"><h3>${t("ideaH")}</h3><p class="sub">${t("ideaSub")}</p><div class="chips">${t("ideaEx").map((q) => `<button class="chip" type="button" data-idea="${esc(q)}">${esc(q)}</button>`).join("")}</div><form id="ideaForm"><input id="ideaIn" maxlength="80" placeholder="${esc(t("ideaPh"))}" aria-label="${esc(t("ideaH"))}"><button class="send" id="ideaGo" type="submit">${t("ideaGo")}</button></form><div class="pair" id="ideaPair" hidden><input id="ideaIn2" maxlength="80" placeholder="${esc(t("ideaPh2"))}" aria-label="${esc(t("ideaPh2"))}" style="flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);padding:12px;font:16px Inter,sans-serif;min-height:48px"></div><button class="vs" type="button" id="ideaVs">${t("ideaVs")}</button><div id="ideaOut" aria-live="polite"></div></section>`;
-  const cmpCard = `<section class="idea cmp" id="cmpBox"><h3>${t("cmpH")}</h3><p class="sub">${t("cmpSub")}</p><div class="chips">${["Supreme", "Carhartt WIP", "Nike"].map((q) => `<button class="chip" type="button" data-rival="${esc(q)}">${esc(q)}</button>`).join("")}</div><form id="cmpForm"><input id="cmpIn" maxlength="60" placeholder="${esc(t("cmpPh"))}" aria-label="${esc(t("cmpH"))}"><button class="send" id="cmpGo" type="submit">${t("cmpGo")}</button></form><div id="cmpOut" aria-live="polite"></div></section>`;
+  const cmpCard = `<section class="idea cmp" id="cmpBox"><h3>${t("cmpH")}</h3><p class="sub">${t("cmpSub")}</p><div class="chips">${["Supreme", "Palace Skateboards", "Patagonia"].map((q) => `<button class="chip" type="button" data-rival="${esc(q)}">${esc(q)}</button>`).join("")}</div><form id="cmpForm"><input id="cmpIn" maxlength="60" placeholder="${esc(t("cmpPh"))}" aria-label="${esc(t("cmpH"))}"><button class="send" id="cmpGo" type="submit">${t("cmpGo")}</button></form><div id="cmpOut" aria-live="polite"></div></section>`;
   const jump = `<nav class="jump" aria-label="${esc(t("jumpLbl"))}">${[["brief", t("jBrief")], ["ideaBox", t("jIdea"), 1], ["cmpBox", t("jCmp"), 1], ["chat", t("jAsk")], ["showsJump", t("jShows")]].map(([id, l, n]) => `<button type="button" data-jump="${id}"${n ? ' class="new"' : ""}>${esc(l)}</button>`).join("")}</nav>`;
   $("#report").innerHTML = proof + jump + '<div id="tickerSlot"></div><span id="brief"></span>' + (cards || `<article class="sec">${body(src.split("\n"))}</article>`) + (tail.length ? `<p class="tools-used">${inline(tail.join(" "))}</p>` : "") + ideaCard + cmpCard + chat + extras;
   document.querySelectorAll("[data-jump]").forEach((b) => b.addEventListener("click", () => {
@@ -577,7 +592,7 @@ const T = {
     ideaH: "Test a product idea", ideaSub: "Qloo scores how well a new piece fits this audience before you make it.", ideaPh: "e.g. olive green tracksuit", ideaGo: "Score it", ideaEx: ["olive green tracksuit", "trucker hat", "puffer jacket"], ideaWait: "Asking Qloo how this audience feels about it…", ideaVs: "+ Compare two ideas", ideaVsOff: "− Score just one", ideaPh2: "vs. e.g. puffer jacket", ideaWin: "Better fit", ideaWhy: (x) => `Brands this audience already loves in the "${x}" lane:`,
     cityH: (x) => `Best city for "${x}"`, cityWait: "Checking each pop-up city with Qloo…", citySum: (a, b) => `Strongest in ${a}, weakest in ${b}.`, cityNote: "same score, weighted toward each city",
     cmpH: "Compare me to a brand", cmpSub: "How much of a bigger brand's audience is already yours, and where you're different.", cmpPh: "e.g. Supreme", cmpGo: "Compare", cmpWait: (x) => `Comparing your audience with ${x}'s…`, cmpHead: (r, p) => (p ? `For your fans, ${r} ranks #${p.rank} of ${p.of} big brands${p.below.length ? `, behind ${p.below.join(" and ")}` : ""}${p.above.length ? `, ahead of ${p.above.join(" and ")}` : ""}.` : `How your fans and ${r} fans differ.`), cmpBoth: "Shared taste", cmpYours: "Your fans lean", cmpTheirs: (r) => `${r} fans lean`, cmpPlaysYou: "Your fans play:", cmpPlaysThem: (r) => `${r} fans play:`, cmpPlaysBoth: "Both play:",
-    whyH: "Why this match:", whyWait: "Asking Qloo why…", whyKnown: "· known for", cityClose: (a) => `A small lean toward ${a}; all these cities are close, so any of them works.`,
+    savedCalls: "Qloo calls · saved run", whyH: "Why this match:", whyWait: "Asking Qloo why…", whyKnown: "· known for", cityClose: (a) => `A small lean toward ${a}; all these cities are close, so any of them works.`,
     jumpLbl: "Jump to", jBrief: "Brief", jIdea: "Test an idea", jCmp: "Compare", jAsk: "Ask", jShows: "Shows & map", jNone: "Not in this brief",
     askH: "Ask a follow-up", askSub: "The agent goes back to Qloo for new data.", askPh: "e.g. What about New York?", askGo: "Ask", askEx: ["What about New York?", "Who's rising right now?", "Cheaper drop ideas?"], thinking: "Asking Qloo…", used: "Qloo calls" },
   es: { powered: "datos de gusto: Qloo<br>agente: Gemini", h1: "Descubre para quién<br>es tu <em>drop.</em>", lede: "Describe tu marca. El agente de Drop Scout consulta el grafo de gustos de Qloo para encontrar los artistas, marcas y ciudades que tu audiencia ya ama, y lo convierte en qué lanzar después y dónde venderlo.", pitch: "Las grandes marcas pagan agencias para investigar gustos. Las marcas independientes lo tienen aquí: dos frases de entrada, un plan de lanzamiento completo en unos 30 segundos, con cada nombre verificado con los datos de Qloo.", label: "Tu marca", go: "Analizar mi audiencia", demo: "⚡ Ver un ejemplo real: Smacked", ph: "Tu informe aparece aquí en tarjetas: audiencia, artistas, marcas, ciudades para pop-ups, eventos y qué lanzar después. Tarda menos de un minuto.",
@@ -586,7 +601,7 @@ const T = {
     ideaH: "Prueba una idea de producto", ideaSub: "Qloo calcula qué tan bien encaja una pieza nueva con esta audiencia antes de fabricarla.", ideaPh: "ej. pants deportivos verde olivo", ideaGo: "Calificar", ideaEx: ["olive green tracksuit", "trucker hat", "puffer jacket"], ideaWait: "Preguntando a Qloo qué opina esta audiencia…", ideaVs: "+ Comparar dos ideas", ideaVsOff: "− Solo una idea", ideaPh2: "vs. ej. puffer jacket", ideaWin: "Mejor opción", ideaWhy: (x) => `Marcas que esta audiencia ya ama en la línea "${x}":`,
     cityH: (x) => `Mejor ciudad para "${x}"`, cityWait: "Revisando cada ciudad con Qloo…", citySum: (a, b) => `Más fuerte en ${a}, más débil en ${b}.`, cityNote: "mismo puntaje, ponderado por ciudad",
     cmpH: "Compárame con una marca", cmpSub: "Cuánto de la audiencia de una marca grande ya es tuya, y en qué se diferencian.", cmpPh: "ej. Supreme", cmpGo: "Comparar", cmpWait: (x) => `Comparando tu audiencia con la de ${x}…`, cmpHead: (r, p) => (p ? `Para tus fans, ${r} queda #${p.rank} de ${p.of} marcas grandes${p.below.length ? `, detrás de ${p.below.join(" y ")}` : ""}${p.above.length ? `, delante de ${p.above.join(" y ")}` : ""}.` : `En qué se diferencian tus fans y los de ${r}.`), cmpBoth: "Gusto en común", cmpYours: "Tus fans", cmpTheirs: (r) => `Fans de ${r}`, cmpPlaysYou: "Tus fans escuchan:", cmpPlaysThem: (r) => `Fans de ${r} escuchan:`, cmpPlaysBoth: "Ambos escuchan:",
-    whyH: "Por qué coincide:", whyWait: "Preguntando a Qloo por qué…", whyKnown: "· conocida por", cityClose: (a) => `Ligera ventaja para ${a}; todas estas ciudades están cerca, cualquiera funciona.`,
+    savedCalls: "consultas a Qloo · ejecución guardada", whyH: "Por qué coincide:", whyWait: "Preguntando a Qloo por qué…", whyKnown: "· conocida por", cityClose: (a) => `Ligera ventaja para ${a}; todas estas ciudades están cerca, cualquiera funciona.`,
     jumpLbl: "Ir a", jBrief: "Reporte", jIdea: "Probar idea", jCmp: "Comparar", jAsk: "Preguntar", jShows: "Shows y mapa", jNone: "No está en este reporte",
     askH: "Haz una pregunta", askSub: "El agente vuelve a Qloo por datos nuevos.", askPh: "ej. ¿Y en Nueva York?", askGo: "Preguntar", askEx: ["¿Y en Nueva York?", "¿Quién está subiendo ahora?", "¿Ideas de drop más baratas?"], thinking: "Consultando a Qloo…", used: "consultas a Qloo" },
 };
@@ -657,7 +672,12 @@ function audienceArtists(){
   const shown = ENT.filter((e) => e.type === "artist" && document.querySelector(`.tile.artist[data-i="${ENT.indexOf(e)}"]`));
   const seen = new Set(); return shown.filter((e) => !seen.has(e.name) && seen.add(e.name)).slice(0, 4).map((e) => ({ name: e.name, id: e.id }));
 }
-const postJSON = async (url, body) => { try { return await (await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json(); } catch { return { error: "Network error" }; } };
+// Saved real answers for the ⚡ example, so its buttons answer instantly even if Qloo is slow. Live scouts never use these.
+let SAVED = null;
+const qimg = (o) => { if (Array.isArray(o)) o.forEach(qimg); else if (o && typeof o === "object") { if (o.id && !o.image && o.name && /^[0-9A-F-]{36}$/i.test(o.id)) o.image = `https://images.qloo.com/i/${o.id}-420x-auto.jpg`; Object.values(o).forEach(qimg); } return o; };
+const savedFor = (url, k) => { const hit = SAVED && SAVED[url + "|" + String(k || "").trim().toLowerCase()]; return hit ? qimg({ ...JSON.parse(JSON.stringify(hit)), _saved: true }) : null; };
+const callsLbl = (d, n) => `${n} ${d && d._saved ? t("savedCalls") : "live Qloo calls"}`;
+const postJSON = async (url, body) => { const hit = savedFor(url, body.idea || body.rival || body.name); if (hit) { await new Promise((r) => setTimeout(r, 450)); return hit; } try { return await (await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json(); } catch { return { error: "Network error" }; } };
 const audienceBrands = () => { const seen = new Set(); return ENT.filter((e) => e.type === "brand" && e.tool !== "qloo_idea" && e.id && !seen.has(e.name) && seen.add(e.name)).slice(0, 3).map((e) => ({ name: e.name, id: e.id })); };
 const ringCls = (f) => (f >= 75 ? "" : f >= 55 ? "mid" : "low");
 const ring = (f) => `<div class="ring ${ringCls(f)}" style="--p:0" data-p="${f}"><b>${f}%</b></div>`;
@@ -684,7 +704,7 @@ async function runIdeas(){
     winner = s2 > s1 ? d2 : d1;
     out.innerHTML = `<div class="h2h">${side(d1, s1 >= s2 && s1 >= 0)}${side(d2, s2 > s1)}</div><div class="idea-res"><div style="grid-column:1/-1" class="tg">${t("ideaWhy")(winner.idea)}</div>${ideaTiles(winner)}</div><div id="ideaCities"></div>`;
   } else {
-    out.innerHTML = `<div class="idea-res">${ring(d1.fit)}<div><div class="v">${esc(d1.verdict)}</div><div class="tg">Qloo tags: ${esc((d1.tags || []).join(", "))} · ${(d1.steps || []).length} live Qloo calls</div></div>${ideaTiles(d1)}</div><div id="ideaCities"></div>`;
+    out.innerHTML = `<div class="idea-res">${ring(d1.fit)}<div><div class="v">${esc(d1.verdict)}</div><div class="tg">Qloo tags: ${esc((d1.tags || []).join(", "))} · ${callsLbl(d1, (d1.steps || []).length)}</div></div>${ideaTiles(d1)}</div><div id="ideaCities"></div>`;
   }
   spinRings(out);
   out.querySelectorAll(".tile").forEach((tl) => tl.addEventListener("click", () => openSheet(ENT[+tl.dataset.i])));
@@ -698,7 +718,7 @@ async function bestCity(idea){
   if (!$("#ideaCities") || d.error || !(d.cities || []).length) { if ($("#ideaCities")) $("#ideaCities").innerHTML = ""; return; }
   const hi = d.cities[0].score, lo = d.cities[d.cities.length - 1].score, close = hi - lo < 0.03;
   const short = (c) => c.replace(/,.*$/, "");
-  $("#ideaCities").innerHTML = `<div class="cities"><h4>${t("cityH")(idea)}</h4><p class="sub" style="margin:0 0 6px">${close ? t("cityClose")(short(d.cities[0].city)) : t("citySum")(short(d.cities[0].city), short(d.cities[d.cities.length - 1].city))}</p>${d.cities.map((c, k) => `<div class="cbar${!close && k === d.cities.length - 1 ? " low" : ""}"><span>${esc(short(c.city))}</span><span class="tr"><i data-w="${Math.max(4, Math.min(100, Math.round(c.score * 100)))}"></i></span><b>${Math.round(c.score * 100)}</b></div>`).join("")}<div class="tg" style="font:12px 'JetBrains Mono',monospace;color:var(--muted)">${d.calls} live Qloo calls · ${t("cityNote")}</div></div>`;
+  $("#ideaCities").innerHTML = `<div class="cities"><h4>${t("cityH")(idea)}</h4><p class="sub" style="margin:0 0 6px">${close ? t("cityClose")(short(d.cities[0].city)) : t("citySum")(short(d.cities[0].city), short(d.cities[d.cities.length - 1].city))}</p>${d.cities.map((c, k) => `<div class="cbar${!close && k === d.cities.length - 1 ? " low" : ""}"><span>${esc(short(c.city))}</span><span class="tr"><i data-w="${Math.max(4, Math.min(100, Math.round(c.score * 100)))}"></i></span><b>${Math.round(c.score * 100)}</b></div>`).join("")}<div class="tg" style="font:12px 'JetBrains Mono',monospace;color:var(--muted)">${callsLbl(d, d.calls)} · ${t("cityNote")}</div></div>`;
   requestAnimationFrame(() => $("#ideaCities").querySelectorAll("i[data-w]").forEach((i) => (i.style.width = i.dataset.w + "%")));
 }
 async function compareRival(name){
@@ -710,7 +730,7 @@ async function compareRival(name){
   if (d.error) { out.innerHTML = `<p class="sub" style="margin-top:12px">${esc(d.error)}</p>`; return; }
   const col = (h, xs) => `<div><h5>${h}</h5>${(xs || []).length ? xs.map((x) => `<p title="${esc(x)}">${esc(x)}</p>`).join("") : `<p>—</p>`}</div>`;
   const plays = (h, xs) => (xs || []).length ? `<p class="plays"><b>${h}</b> ${xs.map(esc).join(", ")}</p>` : "";
-  out.innerHTML = `<div class="cmp-res"><div class="cmp-top">${d.match != null && d.place ? `<div class="ring ${ringCls(d.match)}" style="--p:0" data-p="${d.match}"><b>#${d.place.rank}</b></div>` : ""}<div><div class="v">${esc(t("cmpHead")(d.rival, d.place))}</div><div class="tg">${d.calls} live Qloo calls · qloo_compare_audiences</div></div></div><div class="cmp-cols">${col(t("cmpBoth"), d.both)}${col(t("cmpYours"), d.yours)}${col(t("cmpTheirs")(d.rival), d.theirs)}</div>${plays(t("cmpPlaysYou"), d.yourArtists)}${plays(t("cmpPlaysThem")(d.rival), d.theirArtists)}${plays(t("cmpPlaysBoth"), d.sharedArtists)}</div>`;
+  out.innerHTML = `<div class="cmp-res"><div class="cmp-top">${d.match != null && d.place ? `<div class="ring ${ringCls(d.match)}" style="--p:0" data-p="${d.match}"><b>#${d.place.rank}</b></div>` : ""}<div><div class="v">${esc(t("cmpHead")(d.rival, d.place))}</div><div class="tg">${callsLbl(d, d.calls)} · qloo_compare_audiences</div></div></div><div class="cmp-cols">${col(t("cmpBoth"), d.both)}${col(t("cmpYours"), d.yours)}${col(t("cmpTheirs")(d.rival), d.theirs)}</div>${plays(t("cmpPlaysYou"), d.yourArtists)}${plays(t("cmpPlaysThem")(d.rival), d.theirArtists)}${plays(t("cmpPlaysBoth"), d.sharedArtists)}</div>`;
   spinRings(out);
 }
 
@@ -724,7 +744,7 @@ async function ask(q){
   const namesIn = (el) => el ? [...el.querySelectorAll("li strong")].map((x) => x.textContent) : [];
   const idOf = (n, type) => { const e = ENT.find((x) => x.type === type && x.name.toLowerCase() === n.toLowerCase()); return e && e.id ? { name: n, id: e.id } : n; };
   const payload = { brand: $("#brand").value, question: q, lang: LANG, artists: namesIn(sec(/artist|músic/i)).map((n) => idOf(n, "artist")), brands: namesIn(sec(/brand|marca/i)).map((n) => idOf(n, "brand")), cities: (META.cities || []).map((c) => c.name).concat(namesIn(sec(/pop|dónde/i))) };
-  let d; try { d = await (await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })).json(); } catch { d = { error: "Network error" }; }
+  let d = savedFor("/api/ask", q); if (d) await new Promise((r) => setTimeout(r, 900)); else try { d = await (await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })).json(); } catch { d = { error: "Network error" }; }
   const p = $("#pending"); if (p) p.removeAttribute("id");
   if (d.error) { p.textContent = d.error; go.disabled = false; return; }
   const newTiles = (d.entities || []).filter((e) => e.image && (d.answer || "").toLowerCase().includes(e.name.toLowerCase())).slice(0, 8);
@@ -820,6 +840,7 @@ if (isDesktop()) $("#trail").open = true;
 let META = {};
 function showResult(done, phase){
   META = { verification: done.verification, calls: (done.steps || []).length, secs: done.secs, cities: done.cities || [] };
+  SAVED = done.saved || null;
   $("#bar").style.width = "100%";
   renderBrief(done.report || "No brief was produced.", done.entities || [], done.heat || []);
   renderTrail(done.steps || []);
