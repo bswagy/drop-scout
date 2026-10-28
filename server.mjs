@@ -169,8 +169,9 @@ const GEMINI_MODELS = [...new Set([GEMINI_FAST, GEMINI_MODEL, ...(process.env.GE
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Long "thinking" made each turn take 20s+. Turn it down; if a model rejects the setting, remember and send without it.
-const noThinkingCfg = new Set();
-async function geminiOnce(model, baseBody, timeoutMs = GEMINI_TIMEOUT_MS) {
+const noThinkingCfg = new Set(GEMINI_MODELS.filter((m) => /lite/i.test(m)));   // lite models reject thinkingConfig; skip the wasted round trip
+const HEDGE_MS = Number(process.env.GEMINI_HEDGE_MS || 6000);
+async function geminiOnce(model, baseBody, timeoutMs = GEMINI_TIMEOUT_MS, cancel = null) {
   const t0 = Date.now();
   const body = noThinkingCfg.has(model) ? baseBody : { ...baseBody, generationConfig: { ...baseBody.generationConfig, thinkingConfig: { thinkingBudget: 0 } } };
   let r;
@@ -179,9 +180,10 @@ async function geminiOnce(model, baseBody, timeoutMs = GEMINI_TIMEOUT_MS) {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-goog-api-key": process.env.GEMINI_API_KEY || "" },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(timeoutMs),
+      signal: cancel ? AbortSignal.any([AbortSignal.timeout(timeoutMs), cancel]) : AbortSignal.timeout(timeoutMs),
     });
   } catch (e) {
+    if (cancel?.aborted) return { retry: true, status: 499 };   // another model already answered
     console.error(`[step] gemini ${model} network/timeout: ${e.name}`);
     return { retry: true, status: e.name === "TimeoutError" ? 504 : 502 };
   }
@@ -189,7 +191,7 @@ async function geminiOnce(model, baseBody, timeoutMs = GEMINI_TIMEOUT_MS) {
   if (!r.ok && r.status === 400 && !noThinkingCfg.has(model)) {
     console.error(`[step] gemini ${model} rejected thinkingConfig; retrying without it`);
     noThinkingCfg.add(model);
-    return geminiOnce(model, baseBody, timeoutMs);
+    return geminiOnce(model, baseBody, timeoutMs, cancel);
   }
   if (!r.ok) {
     console.error(`[step] gemini ${model} error ${r.status}: ${String(data?.error?.message).slice(0, 160)}`);
@@ -202,6 +204,31 @@ async function geminiOnce(model, baseBody, timeoutMs = GEMINI_TIMEOUT_MS) {
 }
 
 const modelFailAt = new Map();
+function hedged(order, body, timeoutMs, run) {
+  const ctl = new AbortController();
+  return new Promise((resolve) => {
+    let idx = 0, live = 0, done = false, last = 0, timer = null;
+    const finish = (v) => { if (done) return; done = true; clearTimeout(timer); ctl.abort(); resolve(v); };
+    const launch = () => {
+      if (done) return;
+      if (idx >= order.length) { if (!live) finish({ last }); return; }
+      const model = order[idx++]; live++;
+      geminiOnce(model, body, timeoutMs, ctl.signal).then((res) => {
+        live--;
+        if (done) return;
+        if (res.content) { run.model = model; return finish({ content: res.content }); }
+        last = res.status;
+        modelFailAt.set(model, Date.now());
+        if (run.model === model) delete run.model;
+        if (!res.retry) return finish({ fatal: true });
+        launch();
+      });
+      clearTimeout(timer);
+      timer = setTimeout(() => { if (!done && live < 2 && idx < order.length) { console.log(`[step] gemini: ${order[idx - 1]} slow, hedging`); launch(); } }, HEDGE_MS);
+    };
+    launch();
+  });
+}
 // `run` keeps one model per scout once it works, so the conversation stays on the same model.
 async function gemini(contents, { tools = true, run = {}, system = SYSTEM_PROMPT, json = false, temperature = 0.4, timeoutMs = GEMINI_TIMEOUT_MS } = {}) {
   const body = {
@@ -216,21 +243,14 @@ async function gemini(contents, { tools = true, run = {}, system = SYSTEM_PROMPT
   const base = [...healthy, ...GEMINI_MODELS.filter((m) => !healthy.includes(m))];
   const order = run.model ? [run.model, ...base.filter((m) => m !== run.model)] : base;
   let last = 0;
-  // Two passes over the model list: if Google is briefly overloaded on every model, wait a moment and try once more.
+  // Hedged requests: ask the first model; if it hasn't answered in HEDGE_MS, ask the next one too and take whichever
+  // answers first. A busy model (503) hands off immediately. Two passes if Google is overloaded everywhere.
   for (let pass = 0; pass < 2; pass++) {
-  if (pass === 1) { console.log("[step] gemini: all models busy, retrying after a short pause"); await sleep(3500); }
-  for (const model of order) {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      const res = await geminiOnce(model, body, timeoutMs);
-      if (res.content) { run.model = model; return res.content; }
-      last = res.status;
-      if (!res.retry) throw new PublicError("The AI model request failed.");
-      modelFailAt.set(model, Date.now());
-      if (run.model === model) delete run.model;
-      if (res.status === 404 || res.status === 504 || res.status === 503) break;   // missing, slow or overloaded: go straight to the next model
-      if (attempt === 0) await sleep(1500);   // brief backoff, then one retry
-    }
-  }
+    if (pass === 1) { console.log("[step] gemini: all models busy, retrying after a short pause"); await sleep(3000); }
+    const r = await hedged(order, body, timeoutMs, run);
+    if (r.content) return r.content;
+    if (r.fatal) throw new PublicError("The AI model request failed.");
+    last = r.last;
   }
   throw new PublicError(last === 429 ? "The AI model is rate-limited right now. Try again in a minute." : "The AI model is busy right now. Try again in a minute.");
 }
@@ -768,7 +788,7 @@ async function runPipeline(brand, emit = () => {}, lang = "en") {
   emit({ type: "phase", text: "Planning the scout" });
   let plan;
   try {
-    const msg = await gemini([{ role: "user", parts: [{ text: `Brand description:\n${brand}` }] }], { tools: false, run, system: PLAN_PROMPT, json: true, temperature: 0.2, timeoutMs: 15_000 });
+    const msg = await gemini([{ role: "user", parts: [{ text: `Brand description:\n${brand}` }] }], { tools: false, run, system: PLAN_PROMPT, json: true, temperature: 0.2, timeoutMs: 22_000 });
     plan = JSON.parse((msg.parts || []).map((p) => p.text || "").join(""));
   } catch (e) { if (e instanceof PublicError) throw e; throw new PublicError("Couldn't plan the scout. Try again."); }
   const list = (x, n) => (Array.isArray(x) ? x : []).map((v) => String(v).slice(0, 60)).filter(Boolean).slice(0, n);
