@@ -198,6 +198,20 @@
   .trend.up{color:#1f7a4d} .trend.down{color:#c0262d} .trend.flat{color:var(--muted)}
   .feed .dot.check{background:#1f7a4d;box-shadow:0 0 0 3px #e3f1e8}
   .feed .dot.plan{background:var(--accent)}
+  .idea{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .idea h3{font-family:'Archivo Black',sans-serif;font-size:16px;margin:0 0 4px}
+  .idea .sub{color:var(--muted);font-size:13px;margin:0 0 10px}
+  .idea form{display:flex;gap:8px;background:none;border:0;padding:0;margin-top:10px}
+  .idea input{flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);padding:12px;font:16px Inter,sans-serif;min-height:48px}
+  .idea .send{background:var(--accent);color:#fff;border:0;border-radius:10px;padding:0 16px;font:700 14px Inter,sans-serif;min-height:48px;cursor:pointer}
+  .idea-res{margin-top:12px;display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:center}
+  .ring{--p:0;width:86px;height:86px;border-radius:50%;display:grid;place-items:center;background:conic-gradient(#1f7a4d calc(var(--p)*1%),var(--soft) 0);transition:--p .8s}
+  .ring b{display:grid;place-items:center;width:68px;height:68px;border-radius:50%;background:var(--card);font:800 20px 'Archivo Black',sans-serif;color:#1f7a4d}
+  .ring.mid{background:conic-gradient(#a8743a calc(var(--p)*1%),var(--soft) 0)} .ring.mid b{color:#a8743a}
+  .ring.low{background:conic-gradient(var(--accent) calc(var(--p)*1%),var(--soft) 0)} .ring.low b{color:var(--accent)}
+  .idea-res .v{font-weight:600}
+  .idea-res .tg{font:12px 'JetBrains Mono',monospace;color:var(--muted);margin-top:4px}
+  .idea-res .tiles{grid-column:1/-1;margin:4px -16px 0}
   .chat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
   .chat h3{font-family:'Archivo Black',sans-serif;font-size:16px;margin:0 0 4px}
   .chat .sub{color:var(--muted);font-size:13px;margin:0 0 10px}
@@ -298,7 +312,10 @@ function renderBrief(src, entities = [], heat = []){
   const extras = `<div class="actions"><button class="ghost" type="button" id="copyBtn">Copy brief</button>${navigator.share ? '<button class="ghost" type="button" id="shareBtn">Share</button>' : ""}<button class="ghost" type="button" id="againBtn">Scout another brand</button></div>`;
   const proof = proofHtml();
   const chat = `<section class="chat" id="chat"><h3>${t("askH")}</h3><p class="sub">${t("askSub")}</p><div class="chips" id="askChips">${t("askEx").map((q) => `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div><form class="row" id="askForm" style="margin-top:10px"><input id="askIn" maxlength="400" placeholder="${esc(t("askPh"))}" aria-label="${esc(t("askH"))}"><button class="send" id="askGo" type="submit">${t("askGo")}</button></form><div class="qa" id="qa"></div></section>`;
-  $("#report").innerHTML = proof + '<div id="tickerSlot"></div>' + (cards || `<article class="sec">${body(src.split("\n"))}</article>`) + (tail.length ? `<p class="tools-used">${inline(tail.join(" "))}</p>` : "") + chat + extras;
+  const ideaCard = `<section class="idea" id="ideaBox"><h3>${t("ideaH")}</h3><p class="sub">${t("ideaSub")}</p><div class="chips">${t("ideaEx").map((q) => `<button class="chip" type="button" data-idea="${esc(q)}">${esc(q)}</button>`).join("")}</div><form id="ideaForm"><input id="ideaIn" maxlength="80" placeholder="${esc(t("ideaPh"))}" aria-label="${esc(t("ideaH"))}"><button class="send" id="ideaGo" type="submit">${t("ideaGo")}</button></form><div id="ideaOut" aria-live="polite"></div></section>`;
+  $("#report").innerHTML = proof + '<div id="tickerSlot"></div>' + (cards || `<article class="sec">${body(src.split("\n"))}</article>`) + (tail.length ? `<p class="tools-used">${inline(tail.join(" "))}</p>` : "") + ideaCard + chat + extras;
+  $("#ideaForm").addEventListener("submit", (ev) => { ev.preventDefault(); testIdea($("#ideaIn").value); });
+  document.querySelectorAll("[data-idea]").forEach((b) => b.addEventListener("click", () => { $("#ideaIn").value = b.dataset.idea; testIdea(b.dataset.idea); }));
   $("#askForm").addEventListener("submit", (ev) => { ev.preventDefault(); ask($("#askIn").value); });
   document.querySelectorAll("#askChips [data-q]").forEach((b) => b.addEventListener("click", () => ask(b.dataset.q)));
   $("#copyBtn").onclick = async () => { try { await navigator.clipboard.writeText(lastReport); toast("Brief copied"); } catch { toast("Couldn't copy"); } };
@@ -511,10 +528,12 @@ const T = {
   en: { powered: "taste data by Qloo<br>agent by Gemini", h1: "Know who your<br>drop is <em>for.</em>", lede: "Describe your brand. Drop Scout's agent queries Qloo's taste graph to find the artists, brands and cities your audience already loves, then turns that into what to drop next and where to sell it.", pitch: "Big brands pay agencies for taste research. Independent brands get it here: two sentences in, a full launch plan out in about 30 seconds, with every name verified against Qloo's taste data.", label: "Your brand", go: "Scout my audience", demo: "⚡ See a real example: Smacked", ph: "Your brief shows up here as cards: audience, artists, brands, pop-up cities, event tie-ins and what to drop next. A scout takes under a minute.",
     verified: "Verified by Qloo:", names: "names", removedN: "unbacked removed", live: "live Qloo calls", plan: "Plan", seeds: "seeds", ticker: "TRENDING · 90 DAYS", board: "QLOO MATCH BOARD", retrying: "Google's AI is busy for a moment. Retrying automatically in 15 seconds…",
     stats: "<span>Tested on 20 brands</span><span><b>97.9%</b> of names confirmed by Qloo</span><span><b>21s</b> average scout</span>",
+    ideaH: "Test a product idea", ideaSub: "Qloo scores how well a new piece fits this audience before you make it.", ideaPh: "e.g. olive green tracksuit", ideaGo: "Score it", ideaEx: ["olive green tracksuit", "trucker hat", "puffer jacket"], ideaWait: "Asking Qloo how this audience feels about it…",
     askH: "Ask a follow-up", askSub: "The agent goes back to Qloo for new data.", askPh: "e.g. What about New York?", askGo: "Ask", askEx: ["What about New York?", "Who's rising right now?", "Cheaper drop ideas?"], thinking: "Asking Qloo…", used: "Qloo calls" },
   es: { powered: "datos de gusto: Qloo<br>agente: Gemini", h1: "Descubre para quién<br>es tu <em>drop.</em>", lede: "Describe tu marca. El agente de Drop Scout consulta el grafo de gustos de Qloo para encontrar los artistas, marcas y ciudades que tu audiencia ya ama, y lo convierte en qué lanzar después y dónde venderlo.", pitch: "Las grandes marcas pagan agencias para investigar gustos. Las marcas independientes lo tienen aquí: dos frases de entrada, un plan de lanzamiento completo en unos 30 segundos, con cada nombre verificado con los datos de Qloo.", label: "Tu marca", go: "Analizar mi audiencia", demo: "⚡ Ver un ejemplo real: Smacked", ph: "Tu informe aparece aquí en tarjetas: audiencia, artistas, marcas, ciudades para pop-ups, eventos y qué lanzar después. Tarda menos de un minuto.",
     verified: "Verificado por Qloo:", names: "nombres", removedN: "sin respaldo eliminados", live: "consultas en vivo a Qloo", plan: "Plan", seeds: "semillas", ticker: "TENDENCIAS · 90 DÍAS", board: "AFINIDAD QLOO", retrying: "La IA de Google está ocupada. Reintentando automáticamente en 15 segundos…",
     stats: "<span>Probado con 20 marcas</span><span><b>97.9%</b> de nombres confirmados por Qloo</span><span><b>21s</b> promedio por análisis</span>",
+    ideaH: "Prueba una idea de producto", ideaSub: "Qloo calcula qué tan bien encaja una pieza nueva con esta audiencia antes de fabricarla.", ideaPh: "ej. pants deportivos verde olivo", ideaGo: "Calificar", ideaEx: ["olive green tracksuit", "trucker hat", "puffer jacket"], ideaWait: "Preguntando a Qloo qué opina esta audiencia…",
     askH: "Haz una pregunta", askSub: "El agente vuelve a Qloo por datos nuevos.", askPh: "ej. ¿Y en Nueva York?", askGo: "Preguntar", askEx: ["¿Y en Nueva York?", "¿Quién está subiendo ahora?", "¿Ideas de drop más baratas?"], thinking: "Consultando a Qloo…", used: "consultas a Qloo" },
 };
 let LANG = "en";
@@ -579,6 +598,27 @@ function md(src){
   }
   return html + (inList ? "</ul>" : "");
 }
+// ---- test a product idea ----
+function audienceArtists(){
+  const shown = ENT.filter((e) => e.type === "artist" && document.querySelector(`.tile.artist[data-i="${ENT.indexOf(e)}"]`));
+  const seen = new Set(); return shown.filter((e) => !seen.has(e.name) && seen.add(e.name)).slice(0, 4).map((e) => ({ name: e.name, id: e.id }));
+}
+async function testIdea(idea){
+  idea = String(idea || "").trim(); if (idea.length < 3) return;
+  const out = $("#ideaOut"); const go = $("#ideaGo"); go.disabled = true;
+  out.innerHTML = `<p class="sub" style="margin-top:12px">${t("ideaWait")}</p>`;
+  let d; try { d = await (await fetch("/api/idea", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea, artists: audienceArtists() }) })).json(); } catch { d = { error: "Network error" }; }
+  go.disabled = false;
+  if (d.error) { out.innerHTML = `<p class="sub" style="margin-top:12px">${esc(d.error)}</p>`; return; }
+  if (d.fit == null) { out.innerHTML = `<p class="sub" style="margin-top:12px">${esc(d.verdict)}</p>`; return; }
+  const cls = d.fit >= 80 ? "" : d.fit >= 65 ? "mid" : "low";
+  const start = ENT.length; const tiles = (d.matches || []).map((m, k) => ({ name: m.name, type: "brand", image: m.image, affinity: m.affinity, tool: "qloo_recommend" }));
+  ENT.push(...tiles);
+  out.innerHTML = `<div class="idea-res"><div class="ring ${cls}" style="--p:0"><b>${d.fit}%</b></div><div><div class="v">${esc(d.verdict)}</div><div class="tg">Qloo tags: ${esc((d.tags || []).join(", "))} · ${(d.steps || []).length} live Qloo calls</div></div>${tiles.length ? `<div class="tiles">${tiles.map((e, k) => `<button type="button" class="tile brand" data-i="${start + k}" aria-label="${esc(e.name)}"><span class="pic">${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">` : EQ + `<span class="ini">${esc(initials(e.name))}</span>`}</span><span class="nm">${esc(e.name)}</span>${matchBadge(e)}</button>`).join("")}</div>` : ""}</div>`;
+  requestAnimationFrame(() => { const r = out.querySelector(".ring"); if (r) r.style.setProperty("--p", d.fit); });
+  out.querySelectorAll(".tile").forEach((tl) => tl.addEventListener("click", () => openSheet(ENT[+tl.dataset.i])));
+}
+
 // ---- follow-up questions ----
 async function ask(q){
   q = String(q || "").trim(); if (q.length < 3) return;
@@ -587,7 +627,8 @@ async function ask(q){
   $("#askIn").value = "";
   const sec = (re) => [...document.querySelectorAll(".sec")].find((a) => re.test(a.querySelector("h2")?.textContent || ""));
   const namesIn = (el) => el ? [...el.querySelectorAll("li strong")].map((x) => x.textContent) : [];
-  const payload = { brand: $("#brand").value, question: q, lang: LANG, artists: namesIn(sec(/artist|músic/i)), brands: namesIn(sec(/brand|marca/i)), cities: (META.cities || []).map((c) => c.name).concat(namesIn(sec(/pop|dónde/i))) };
+  const idOf = (n, type) => { const e = ENT.find((x) => x.type === type && x.name.toLowerCase() === n.toLowerCase()); return e && e.id ? { name: n, id: e.id } : n; };
+  const payload = { brand: $("#brand").value, question: q, lang: LANG, artists: namesIn(sec(/artist|músic/i)).map((n) => idOf(n, "artist")), brands: namesIn(sec(/brand|marca/i)).map((n) => idOf(n, "brand")), cities: (META.cities || []).map((c) => c.name).concat(namesIn(sec(/pop|dónde/i))) };
   let d; try { d = await (await fetch("/api/ask", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })).json(); } catch { d = { error: "Network error" }; }
   const p = $("#pending"); if (p) p.removeAttribute("id");
   if (d.error) { p.textContent = d.error; go.disabled = false; return; }
