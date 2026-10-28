@@ -162,7 +162,10 @@ const functionDeclarations = () => qlooTools.map((t) => ({
 }));
 
 // Models to try, in order. Busy (503), rate-limited (429) or missing (404) models fall through to the next.
-const GEMINI_MODELS = [...new Set([GEMINI_MODEL, ...(process.env.GEMINI_FALLBACKS || "gemini-3.8-flash,gemini-flash-lite-latest").split(",").map((m) => m.trim()).filter(Boolean)])];
+// The lite model answered every scout in testing while the main one was often busy, so it goes first.
+// Set GEMINI_FAST="" in the environment to turn this off.
+const GEMINI_FAST = process.env.GEMINI_FAST ?? "gemini-flash-lite-latest";
+const GEMINI_MODELS = [...new Set([GEMINI_FAST, GEMINI_MODEL, ...(process.env.GEMINI_FALLBACKS || "gemini-3.8-flash,gemini-flash-lite-latest").split(",").map((m) => m.trim()).filter(Boolean)])];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Long "thinking" made each turn take 20s+. Turn it down; if a model rejects the setting, remember and send without it.
@@ -991,7 +994,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, await findVideo(artist));
     }
     if (req.method === "GET" && req.url === "/api/tools") return send(res, 200, qlooTools.map((t) => ({ name: t.name, description: t.description, inputSchema: t.inputSchema })));
-    if (req.method === "GET" && req.url === "/api/health") return send(res, 200, { ok: true, qloo: Boolean(qloo), tools: qlooTools.length, model: GEMINI_MODEL });
+    if (req.method === "GET" && req.url === "/api/health") return send(res, 200, { ok: true, qloo: Boolean(qloo), tools: qlooTools.length, model: GEMINI_MODELS[0], models: GEMINI_MODELS });
     if (req.method === "GET") return await serveStatic(req, res);
     send(res, 405, { error: "Method not allowed" });
   } catch (e) {
