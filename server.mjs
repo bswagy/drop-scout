@@ -57,8 +57,14 @@ async function connectQloo() {
 async function callQloo(name, args) {
   if (!qloo) await connectQloo();
   const t0 = Date.now();
-  const res = await qloo.callTool({ name, arguments: args ?? {} }, undefined, { timeout: QLOO_TIMEOUT_MS });
-  const env = res.structuredContent ?? { status: "error", summary: "No structured result", results: [] };
+  let res = await qloo.callTool({ name, arguments: args ?? {} }, undefined, { timeout: QLOO_TIMEOUT_MS });
+  let env = res.structuredContent ?? { status: "error", summary: "No structured result", results: [] };
+  for (let k = 0; k < 2 && env.status === "error" && /429|too many/i.test(String(env.summary)); k++) {
+    console.log(`[step] qloo ${name} rate-limited, retrying`);
+    await new Promise((r) => setTimeout(r, 900 * (k + 1)));
+    res = await qloo.callTool({ name, arguments: args ?? {} }, undefined, { timeout: QLOO_TIMEOUT_MS });
+    env = res.structuredContent ?? env;
+  }
   console.log(`[step] qloo ${name} -> ${env.status} (${env.result_count ?? (env.results || []).length} results) in ${Date.now() - t0}ms`);
   if (env.status === "error") console.log(`[step] qloo ${name} error: ${env.error?.code} ${String(env.summary).slice(0, 200)}`);
   if (env.status === "needs_input") console.log(`[needs_input] ${name}`, JSON.stringify(env.resolution ?? env.needs_input ?? env.questions ?? {}).replace(/https?:\/\/\S+?"/g, '"URL"').slice(0, 900));
@@ -504,7 +510,23 @@ async function audienceIds({ artists = [], brands = [] }) {
   const br = (await Promise.all(brands.slice(0, 3).map((b) => one(b, "brand")))).filter(Boolean);
   return { ar, br };
 }
-const DEV_RAW = process.env.DEV_RAW === "1" || true; // TEMP: inspect new tool shapes
+const DEV_RAW = process.env.DEV_RAW === "1";
+// Run async jobs two at a time to stay under Qloo's rate limit.
+async function pairwise(items, fn) { const out = []; for (let i = 0; i < items.length; i += 2) out.push(...(await Promise.all(items.slice(i, i + 2).map(fn)))); return out; }
+// Taste tags worth showing a person. Skip industry/retail/price tags and anything demographic.
+const TASTE_SUB = /genre:music|genre:brand|personal_style|lifestyle|theme|emotional_tone|cultural_relevance|adjective|style/;
+const NOT_TASTE = /race|ethnic|african|hispanic|latin[oa]|asian|caucasian|white|black|religio|gender|\bmale|female|lgbt|identif|income|star$|^fashion$|retail|accessories|vocals/i;
+const tagLabel = (t) => String(t.name || "").replace(/\s*-\s*/g, "-").trim();
+function tasteTags(list, max = 3, prefer = null) {
+  const seen = new Set(); const ok = (list || []).filter((t) => t && TASTE_SUB.test(String(t.subtype || "")) && !NOT_TASTE.test(String(t.name || "")));
+  const sorted = prefer ? [...ok.filter((t) => prefer.test(t.subtype)), ...ok.filter((t) => !prefer.test(t.subtype))] : ok;
+  return sorted.map(tagLabel).filter((n) => n && !seen.has(n.toLowerCase()) && seen.add(n.toLowerCase())).slice(0, max);
+}
+async function compareTags(groupA, groupB) {
+  const env = await callQlooFixed("qloo_compare_audiences", { group_a: groupA, group_b: groupB, limit: 10 });
+  const r = env.results && !Array.isArray(env.results) ? env.results : {};
+  return { status: env.status, both: r.tags || [], a: r.a || [], b: r.b || [] };
+}
 
 // ---------- Best city for an idea: same idea score, filtered to each pop-up city ----------
 const ideaCityCache = new Map();
@@ -512,18 +534,18 @@ async function ideaCities({ idea, artists = [], cities = [] }) {
   const text = String(idea || "").trim().slice(0, 80);
   const { ar } = await audienceIds({ artists });
   if (!ar.length || text.length < 3) throw new PublicError("Score an idea first.");
-  const list = [...new Set(cities.map((c) => String(c?.name || c).trim().slice(0, 60)).filter(Boolean))].slice(0, 5);
+  const list = [...new Set(cities.map((c) => String(c?.name || c).trim().slice(0, 60)).filter(Boolean))].slice(0, 4);
   if (list.length < 2) throw new PublicError("Need at least two pop-up cities from the brief.");
   const key = norm(text) + "|" + ar.join(",") + "|" + list.join(";");
   if (ideaCityCache.has(key)) return ideaCityCache.get(key);
   const tagEnv = await callQloo("qloo_find_tags", { query: text, limit: 6 });
   const tagIds = (tagEnv.results || []).map(idOf).filter((x) => typeof x === "string" && x.startsWith("urn:tag")).slice(0, 2);
   if (!tagIds.length) throw new PublicError("Qloo has no taste data for that idea.");
-  const rows = await Promise.all(list.map(async (city) => {
+  const rows = await pairwise(list, async (city) => {
     const env = await callQlooFixed("qloo_recommend", { target_type: "brand", signals: ar, include_tags: tagIds, include_tags_operator: "union", filter_location: city, limit: 6 });
     const s = top3((env.results || []).map(affOf));
     return { city, score: s == null ? null : Math.round(s * 1000) / 1000, top: nameOf((env.results || [])[0]), status: env.status };
-  }));
+  });
   const ok = rows.filter((r) => r.score != null).sort((a, b) => b.score - a.score);
   const out = { idea: text, cities: ok, calls: rows.length + 1 };
   if (ok.length >= 2) ideaCityCache.set(key, out);
@@ -543,56 +565,42 @@ async function compareBrand({ rival, artists = [], brands = [] }) {
   const mine = [...ar, ...br.filter((x) => x !== rid)].slice(0, 6);
   const key = rid + "|" + mine.join(",");
   if (compareCache.has(key)) return compareCache.get(key);
-  const [cmpA, cmpB, recMine, recRival, rank] = await Promise.all([
-    callQlooFixed("qloo_compare_audiences", { group_a: mine, group_b: [rid], target_type: "artist", limit: 10 }),
-    callQlooFixed("qloo_compare_audiences", { group_a: mine, group_b: [rid], target_type: "brand", limit: 10 }),
-    callQlooFixed("qloo_recommend", { target_type: "artist", signals: ar, limit: 20 }),
-    callQlooFixed("qloo_recommend", { target_type: "artist", signals: [rid], limit: 20 }),
-    callQlooFixed("qloo_rank", { options: [rid], option_type: "brand", signals: ar }),
-  ]);
-  for (const env of [cmpA, cmpB]) console.log("[compare raw]", env.status, JSON.stringify(prune(env)).slice(0, 1500));
-  const list = (env) => (env.results || []).map((r) => ({ name: nameOf(r), id: idOf(r), affinity: affOf(r), image: findImage(r) })).filter((x) => x.name);
+  const [cmp, rank] = await Promise.all([compareTags(mine, [rid]), callQlooFixed("qloo_rank", { options: [rid], option_type: "brand", signals: ar })]);
+  const [recMine, recRival] = await Promise.all([callQlooFixed("qloo_recommend", { target_type: "artist", signals: ar, limit: 20 }), callQlooFixed("qloo_recommend", { target_type: "artist", signals: [rid], limit: 20 })]);
+  const list = (env) => (env.results || []).map((r) => ({ name: nameOf(r), id: idOf(r), affinity: affOf(r) })).filter((x) => x.name);
   const m = list(recMine), r = list(recRival);
   const rn = new Set(r.map((x) => norm(x.name))), mn = new Set(m.map((x) => norm(x.name)));
-  const shared = m.filter((x) => rn.has(norm(x.name)));
-  const share = Math.round(100 * shared.length / Math.max(1, Math.min(m.length, r.length)));
   const rk = (rank.results || [])[0];
   const out = {
-    rival: nameById.get(rid) || name, rivalImage: rk ? findImage(rk) : null,
+    rival: nameById.get(rid) || name,
     match: rk && Number.isFinite(affOf(rk)) ? Math.round(affOf(rk) * 100) : null,
-    share, shared: shared.slice(0, 4), yours: m.filter((x) => !rn.has(norm(x.name))).slice(0, 4), theirs: r.filter((x) => !mn.has(norm(x.name))).slice(0, 4),
-    calls: 5,
+    both: tasteTags(cmp.both, 3), yours: tasteTags(cmp.a, 3, /genre:music|personal_style/), theirs: tasteTags(cmp.b, 3, /genre:music|personal_style|lifestyle/),
+    sharedArtists: m.filter((x) => rn.has(norm(x.name))).slice(0, 3).map((x) => x.name),
+    yourArtists: m.filter((x) => !rn.has(norm(x.name))).slice(0, 3).map((x) => x.name),
+    theirArtists: r.filter((x) => !mn.has(norm(x.name))).slice(0, 3).map((x) => x.name),
+    calls: 4,
   };
-  if (DEV_RAW) out._raw = { cmpA: prune(cmpA), cmpB: prune(cmpB), rank: prune(rank) };
+  if (!out.both.length && !out.yours.length && out.match == null) throw new PublicError("Qloo couldn't compare those audiences right now. Try again in a moment.");
+  if (DEV_RAW) out._raw = { cmp, rank: prune(rank) };
   compareCache.set(key, out);
   return out;
 }
 
-// ---------- Why this match? qloo_entity_tags on the tile vs. the audience ----------
-const tagCache = new Map();
-async function tagsFor(ids, type) {
-  const key = (type || "") + ":" + ids.join(",");
-  if (tagCache.has(key)) return tagCache.get(key);
-  const env = await callQlooFixed("qloo_entity_tags", type ? { entities: ids, entity_type: type, limit: 20 } : { entities: ids, limit: 20 });
-  if (!tagCache.has("_logged")) { tagCache.set("_logged", 1); console.log("[entity_tags raw]", env.status, JSON.stringify(prune(env)).slice(0, 1500)); }
-  const tags = (env.results || []).map((r) => ({ id: idOf(r), name: nameOf(r), affinity: affOf(r) })).filter((t) => t.name && !/^urn:/.test(t.name));
-  const out = { tags, status: env.status, raw: DEV_RAW ? prune(env) : undefined };
-  if (tags.length) tagCache.set(key, out);
-  return out;
-}
-const prettyTag = (s) => String(s).replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+// ---------- Why this match? Shared taste tags from qloo_compare_audiences (tile vs. the rest of the audience) ----------
+const whyCache = new Map();
 async function whyMatch({ id, name, type, artists = [], brands = [] }) {
   const t = type === "brand" ? "brand" : "artist";
   const eid = UUID_RE.test(String(id || "")) ? id : await resolveName(String(name || "").slice(0, 80), t);
   if (!eid) throw new PublicError("Qloo couldn't find this one.");
   const { ar, br } = await audienceIds({ artists, brands });
-  const aud = (t === "artist" ? ar : br.length ? br : ar).filter((x) => x !== eid).slice(0, 3);
-  const [own, joint] = await Promise.all([tagsFor([eid], t), aud.length ? tagsFor(aud, t) : Promise.resolve({ tags: [] })]);
-  const jn = new Map(joint.tags.map((x) => [norm(x.id || x.name), x]));
-  const shared = own.tags.filter((x) => jn.has(norm(x.id || x.name)));
-  const pick = (shared.length >= 2 ? shared : [...shared, ...own.tags.filter((x) => !shared.includes(x))]).slice(0, 3);
-  const out = { name: nameById.get(eid) || name, tags: pick.map((x) => prettyTag(x.name)), sharedCount: shared.length, calls: aud.length ? 2 : 1 };
-  if (DEV_RAW) out._raw = { own: own.raw, joint: joint.raw };
+  const aud = (t === "artist" ? ar : [...br, ...ar]).filter((x) => x !== eid).slice(0, 4);
+  if (!aud.length) throw new PublicError("Run a scout first.");
+  const key = eid + "|" + aud.join(",");
+  if (whyCache.has(key)) return whyCache.get(key);
+  const cmp = await compareTags([eid], aud);
+  const tags = tasteTags(cmp.both, 3, t === "artist" ? /genre:music/ : /personal_style|lifestyle|genre:brand/);
+  const out = { name: nameById.get(eid) || name, tags, calls: 1 };
+  if (tags.length) whyCache.set(key, out);
   return out;
 }
 
