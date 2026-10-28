@@ -456,7 +456,7 @@ async function findTrends(items) {
 // ---------- Test a product idea: how well does a concept fit this audience? ----------
 const ideaCache = new Map();
 const ideaBase = new Map();
-const IDEA_FLOOR = Number(process.env.IDEA_FLOOR || 0.75);
+const IDEA_FLOOR = Number(process.env.IDEA_FLOOR || 0.65);
 const top3 = (xs) => { const v = xs.filter(Number.isFinite).sort((a, b) => b - a).slice(0, 3); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
 async function scoreIdea({ idea, artists = [], brands = [] }) {
   const text = String(idea || "").trim().slice(0, 80);
@@ -487,8 +487,8 @@ async function scoreIdea({ idea, artists = [], brands = [] }) {
   // Relative fit: how close the best brands in this product lane get to the audience's overall favourite brands.
   const ratio = base ? Math.min(1, raw / base) : raw;
   const fit = Math.round(100 * Math.max(0, Math.min(1, (ratio - IDEA_FLOOR) / (1 - IDEA_FLOOR))));
-  const verdict = fit >= 90 ? "Strong fit: your audience already gravitates to brands in this lane." : fit >= 80 ? "Good fit: worth a small test drop." : fit >= 65 ? "Mixed fit: test it as a limited run before committing." : "Weak fit: your audience leans elsewhere.";
-  const out = { idea: text, fit, verdict, tags: tags.map((t) => t.name), matches, steps, raw: +raw.toFixed(3), base: base && +base.toFixed(3) };
+  const verdict = fit >= 90 ? "Strong fit: your audience already gravitates to brands in this lane." : fit >= 75 ? "Good fit: worth a small test drop." : fit >= 55 ? "Mixed fit: test it as a limited run before committing." : "Weak fit: your audience leans elsewhere.";
+  const out = { idea: text, fit, verdict, tags: tags.map((t) => t.name), matches, steps };
   ideaCache.set(key, out);
   console.log(`[idea] "${text.slice(0, 40)}" -> ${fit}% raw ${raw.toFixed(3)} base ${base && base.toFixed(3)} (${tags.map((t) => t.name).join(", ")})`);
   return out;
