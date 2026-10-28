@@ -229,6 +229,8 @@
   .cbar.low .tr i{background:var(--accent)}
   .cbar b{font:12px 'JetBrains Mono',monospace;text-align:right}
   .cmp-res{margin-top:12px}
+  .cmp-res .plays{margin:8px 0 0;font-size:13px;line-height:1.4}
+  .cmp-res .plays b{font-weight:600}
   .cmp-res .v{font-weight:600;font-size:15px;line-height:1.35}
   .cmp-res .tg{font:12px 'JetBrains Mono',monospace;color:var(--muted);margin-top:4px}
   .cmp-top{display:flex;gap:12px;align-items:center}
@@ -563,7 +565,7 @@ const T = {
     stats: "<span>Tested on 20 brands</span><span><b>97.9%</b> of names confirmed by Qloo</span><span><b>21s</b> average scout</span>",
     ideaH: "Test a product idea", ideaSub: "Qloo scores how well a new piece fits this audience before you make it.", ideaPh: "e.g. olive green tracksuit", ideaGo: "Score it", ideaEx: ["olive green tracksuit", "trucker hat", "puffer jacket"], ideaWait: "Asking Qloo how this audience feels about it…", ideaVs: "+ Compare two ideas", ideaVsOff: "− Score just one", ideaPh2: "vs. e.g. puffer jacket", ideaWin: "Better fit", ideaWhy: (x) => `Brands this audience already loves in the "${x}" lane:`,
     cityH: (x) => `Best city for "${x}"`, cityWait: "Checking each pop-up city with Qloo…", citySum: (a, b) => `Strongest in ${a}, weakest in ${b}.`, cityNote: "same score, filtered to each city",
-    cmpH: "Compare me to a brand", cmpSub: "How much of a bigger brand's audience is already yours, and where you're different.", cmpPh: "e.g. Supreme", cmpGo: "Compare", cmpWait: (x) => `Comparing your audience with ${x}'s…`, cmpHead: (r, m, s) => (m != null ? `${r} is a ${m}% taste match for your fans; ${s}% of the artists they love overlap.` : `${s}% of the artists your fans and ${r} fans love overlap.`), cmpBoth: "Both love", cmpYours: "Only your fans", cmpTheirs: (r) => `Only ${r}`,
+    cmpH: "Compare me to a brand", cmpSub: "How much of a bigger brand's audience is already yours, and where you're different.", cmpPh: "e.g. Supreme", cmpGo: "Compare", cmpWait: (x) => `Comparing your audience with ${x}'s…`, cmpHead: (r, m) => (m != null ? `${r} is a ${m}% taste match for your fans.` : `How your fans and ${r} fans differ.`), cmpBoth: "Shared taste", cmpYours: "Your fans lean", cmpTheirs: (r) => `${r} fans lean`, cmpPlaysYou: "Your fans play:", cmpPlaysThem: (r) => `${r} fans play:`, cmpPlaysBoth: "Both play:",
     whyH: "Why this match:", whyWait: "Asking Qloo why…",
     askH: "Ask a follow-up", askSub: "The agent goes back to Qloo for new data.", askPh: "e.g. What about New York?", askGo: "Ask", askEx: ["What about New York?", "Who's rising right now?", "Cheaper drop ideas?"], thinking: "Asking Qloo…", used: "Qloo calls" },
   es: { powered: "datos de gusto: Qloo<br>agente: Gemini", h1: "Descubre para quién<br>es tu <em>drop.</em>", lede: "Describe tu marca. El agente de Drop Scout consulta el grafo de gustos de Qloo para encontrar los artistas, marcas y ciudades que tu audiencia ya ama, y lo convierte en qué lanzar después y dónde venderlo.", pitch: "Las grandes marcas pagan agencias para investigar gustos. Las marcas independientes lo tienen aquí: dos frases de entrada, un plan de lanzamiento completo en unos 30 segundos, con cada nombre verificado con los datos de Qloo.", label: "Tu marca", go: "Analizar mi audiencia", demo: "⚡ Ver un ejemplo real: Smacked", ph: "Tu informe aparece aquí en tarjetas: audiencia, artistas, marcas, ciudades para pop-ups, eventos y qué lanzar después. Tarda menos de un minuto.",
@@ -571,7 +573,7 @@ const T = {
     stats: "<span>Probado con 20 marcas</span><span><b>97.9%</b> de nombres confirmados por Qloo</span><span><b>21s</b> promedio por análisis</span>",
     ideaH: "Prueba una idea de producto", ideaSub: "Qloo calcula qué tan bien encaja una pieza nueva con esta audiencia antes de fabricarla.", ideaPh: "ej. pants deportivos verde olivo", ideaGo: "Calificar", ideaEx: ["olive green tracksuit", "trucker hat", "puffer jacket"], ideaWait: "Preguntando a Qloo qué opina esta audiencia…", ideaVs: "+ Comparar dos ideas", ideaVsOff: "− Solo una idea", ideaPh2: "vs. ej. puffer jacket", ideaWin: "Mejor opción", ideaWhy: (x) => `Marcas que esta audiencia ya ama en la línea "${x}":`,
     cityH: (x) => `Mejor ciudad para "${x}"`, cityWait: "Revisando cada ciudad con Qloo…", citySum: (a, b) => `Más fuerte en ${a}, más débil en ${b}.`, cityNote: "mismo puntaje, filtrado por ciudad",
-    cmpH: "Compárame con una marca", cmpSub: "Cuánto de la audiencia de una marca grande ya es tuya, y en qué se diferencian.", cmpPh: "ej. Supreme", cmpGo: "Comparar", cmpWait: (x) => `Comparando tu audiencia con la de ${x}…`, cmpHead: (r, m, s) => (m != null ? `${r} tiene ${m}% de afinidad con tus fans; ${s}% de los artistas que aman coinciden.` : `${s}% de los artistas que aman tus fans y los de ${r} coinciden.`), cmpBoth: "Ambos aman", cmpYours: "Solo tus fans", cmpTheirs: (r) => `Solo ${r}`,
+    cmpH: "Compárame con una marca", cmpSub: "Cuánto de la audiencia de una marca grande ya es tuya, y en qué se diferencian.", cmpPh: "ej. Supreme", cmpGo: "Comparar", cmpWait: (x) => `Comparando tu audiencia con la de ${x}…`, cmpHead: (r, m) => (m != null ? `${r} tiene ${m}% de afinidad con tus fans.` : `En qué se diferencian tus fans y los de ${r}.`), cmpBoth: "Gusto en común", cmpYours: "Tus fans", cmpTheirs: (r) => `Fans de ${r}`, cmpPlaysYou: "Tus fans escuchan:", cmpPlaysThem: (r) => `Fans de ${r} escuchan:`, cmpPlaysBoth: "Ambos escuchan:",
     whyH: "Por qué coincide:", whyWait: "Preguntando a Qloo por qué…",
     askH: "Haz una pregunta", askSub: "El agente vuelve a Qloo por datos nuevos.", askPh: "ej. ¿Y en Nueva York?", askGo: "Preguntar", askEx: ["¿Y en Nueva York?", "¿Quién está subiendo ahora?", "¿Ideas de drop más baratas?"], thinking: "Consultando a Qloo…", used: "consultas a Qloo" },
 };
@@ -693,9 +695,9 @@ async function compareRival(name){
   const d = await postJSON("/api/compare", { rival: name, artists: audienceArtists(), brands: audienceBrands() });
   go.disabled = false;
   if (d.error) { out.innerHTML = `<p class="sub" style="margin-top:12px">${esc(d.error)}</p>`; return; }
-  const col = (h, xs) => `<div><h5>${h}</h5>${(xs || []).length ? xs.map((x) => `<p title="${esc(x.name)}">${esc(x.name)}</p>`).join("") : `<p>—</p>`}</div>`;
-  const score = d.match != null ? d.match : d.share;
-  out.innerHTML = `<div class="cmp-res"><div class="cmp-top">${score != null ? ring(score) : ""}<div><div class="v">${esc(t("cmpHead")(d.rival, d.match != null ? d.match : null, d.share))}</div><div class="tg">${d.calls} live Qloo calls · qloo_compare_audiences</div></div></div><div class="cmp-cols">${col(t("cmpBoth"), d.shared)}${col(t("cmpYours"), d.yours)}${col(t("cmpTheirs")(d.rival), d.theirs)}</div></div>`;
+  const col = (h, xs) => `<div><h5>${h}</h5>${(xs || []).length ? xs.map((x) => `<p title="${esc(x)}">${esc(x)}</p>`).join("") : `<p>—</p>`}</div>`;
+  const plays = (h, xs) => (xs || []).length ? `<p class="plays"><b>${h}</b> ${xs.map(esc).join(", ")}</p>` : "";
+  out.innerHTML = `<div class="cmp-res"><div class="cmp-top">${d.match != null ? ring(d.match) : ""}<div><div class="v">${esc(t("cmpHead")(d.rival, d.match))}</div><div class="tg">${d.calls} live Qloo calls · qloo_compare_audiences</div></div></div><div class="cmp-cols">${col(t("cmpBoth"), d.both)}${col(t("cmpYours"), d.yours)}${col(t("cmpTheirs")(d.rival), d.theirs)}</div>${plays(t("cmpPlaysYou"), d.yourArtists)}${plays(t("cmpPlaysThem")(d.rival), d.theirArtists)}${plays(t("cmpPlaysBoth"), d.sharedArtists)}</div>`;
   spinRings(out);
 }
 
