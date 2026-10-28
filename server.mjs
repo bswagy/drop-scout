@@ -455,6 +455,9 @@ async function findTrends(items) {
 
 // ---------- Test a product idea: how well does a concept fit this audience? ----------
 const ideaCache = new Map();
+const ideaBase = new Map();
+const IDEA_FLOOR = Number(process.env.IDEA_FLOOR || 0.75);
+const top3 = (xs) => { const v = xs.filter(Number.isFinite).sort((a, b) => b - a).slice(0, 3); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
 async function scoreIdea({ idea, artists = [], brands = [] }) {
   const text = String(idea || "").trim().slice(0, 80);
   if (text.length < 3) throw new PublicError("Describe the product idea first.");
@@ -468,6 +471,8 @@ async function scoreIdea({ idea, artists = [], brands = [] }) {
   const tags = (tagEnv.results || []).filter((r) => typeof r.id === "string" && r.id.startsWith("urn:tag")).slice(0, 2);
   if (!tags.length) return { idea: text, fit: null, verdict: "Qloo has no taste data for that idea yet. Try simpler words, like \"tracksuit\" or \"trucker hat\".", tags: [], matches: [], steps };
   const tagIds = tags.map((t) => t.id);
+  const baseKey = aIds.join(",");
+  const baseP = ideaBase.has(baseKey) ? Promise.resolve(ideaBase.get(baseKey)) : callQlooFixed("qloo_recommend", { target_type: "brand", signals: aIds, limit: 10 }).then((env) => { const v = top3((env.results || []).map((r) => Number(r.affinity ?? r.query?.affinity ?? NaN))); if (v) ideaBase.set(baseKey, v); return v; }).catch(() => null);
   let rec = await callQlooFixed("qloo_recommend", { target_type: "brand", signals: aIds, include_tags: tagIds, include_tags_operator: "union", limit: 6 });
   steps.push({ tool: "qloo_recommend", args: { target_type: "brand", signals: aIds.map((x) => nameById.get(x) || x), include_tags: tagIds }, status: rec.status, count: (rec.results || []).length });
   if (!(rec.results || []).length) {
@@ -477,11 +482,15 @@ async function scoreIdea({ idea, artists = [], brands = [] }) {
   const matches = (rec.results || []).map((r) => ({ name: r.name, affinity: Number(r.affinity ?? r.query?.affinity ?? NaN), image: findImage(r) })).filter((m) => m.name && Number.isFinite(m.affinity)).slice(0, 5);
   if (!matches.length) return { idea: text, fit: null, verdict: "Not enough Qloo signal for this idea with your audience.", tags: tags.map((t) => t.name), matches: [], steps };
   const top = matches.slice(0, 3);
-  const fit = Math.round((top.reduce((a, m) => a + m.affinity, 0) / top.length) * 100);
+  const raw = top3(top.map((m) => m.affinity));
+  const base = await baseP;
+  // Relative fit: how close the best brands in this product lane get to the audience's overall favourite brands.
+  const ratio = base ? Math.min(1, raw / base) : raw;
+  const fit = Math.round(100 * Math.max(0, Math.min(1, (ratio - IDEA_FLOOR) / (1 - IDEA_FLOOR))));
   const verdict = fit >= 90 ? "Strong fit: your audience already gravitates to brands in this lane." : fit >= 80 ? "Good fit: worth a small test drop." : fit >= 65 ? "Mixed fit: test it as a limited run before committing." : "Weak fit: your audience leans elsewhere.";
-  const out = { idea: text, fit, verdict, tags: tags.map((t) => t.name), matches, steps };
+  const out = { idea: text, fit, verdict, tags: tags.map((t) => t.name), matches, steps, raw: +raw.toFixed(3), base: base && +base.toFixed(3) };
   ideaCache.set(key, out);
-  console.log(`[idea] "${text.slice(0, 40)}" -> ${fit}% (${tags.map((t) => t.name).join(", ")})`);
+  console.log(`[idea] "${text.slice(0, 40)}" -> ${fit}% raw ${raw.toFixed(3)} base ${base && base.toFixed(3)} (${tags.map((t) => t.name).join(", ")})`);
   return out;
 }
 
