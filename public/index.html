@@ -212,6 +212,33 @@
   .idea-res .v{font-weight:600}
   .idea-res .tg{font:12px 'JetBrains Mono',monospace;color:var(--muted);margin-top:4px}
   .idea-res .tiles{grid-column:1/-1;margin:4px -16px 0}
+  .idea .vs{background:none;border:0;color:var(--accent);font:600 13px Inter,sans-serif;padding:8px 0 0;cursor:pointer}
+  .idea .pair{display:flex;gap:8px;margin-top:8px}
+  .h2h{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .h2h .side{border:1px solid var(--line);border-radius:12px;padding:12px;text-align:center;position:relative}
+  .h2h .side.win{border-color:#1f7a4d;box-shadow:0 0 0 2px rgba(31,122,77,.18)}
+  .h2h .side .ring{margin:0 auto 8px}
+  .h2h .nm{font-weight:700;font-size:14px}
+  .h2h .vd{font-size:12px;color:var(--muted);margin-top:2px}
+  .h2h .crown{position:absolute;top:-10px;left:50%;transform:translateX(-50%);background:#1f7a4d;color:#fff;font:700 11px Inter,sans-serif;border-radius:999px;padding:3px 9px;white-space:nowrap}
+  .cities{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+  .cities h4,.cmp h4{margin:0 0 8px;font:700 13px Inter,sans-serif}
+  .cbar{display:grid;grid-template-columns:110px 1fr 38px;gap:8px;align-items:center;font-size:13px;margin:6px 0}
+  .cbar .tr{height:10px;border-radius:99px;background:var(--soft);overflow:hidden}
+  .cbar .tr i{display:block;height:100%;width:0;background:#1f7a4d;border-radius:99px;transition:width .8s}
+  .cbar.low .tr i{background:var(--accent)}
+  .cbar b{font:12px 'JetBrains Mono',monospace;text-align:right}
+  .cmp-res{margin-top:12px}
+  .cmp-res .v{font-weight:600;font-size:15px;line-height:1.35}
+  .cmp-res .tg{font:12px 'JetBrains Mono',monospace;color:var(--muted);margin-top:4px}
+  .cmp-top{display:flex;gap:12px;align-items:center}
+  .cmp-top img{width:56px;height:56px;border-radius:12px;object-fit:cover;background:var(--soft)}
+  .cmp-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+  .cmp-cols div{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px;font-size:12px;min-width:0}
+  .cmp-cols h5{margin:0 0 6px;font:700 11px 'JetBrains Mono',monospace;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+  .cmp-cols p{margin:0 0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .why{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:-4px 0 10px;font-size:12px;color:var(--muted)}
+  .why span{background:var(--soft);color:var(--ink);border-radius:999px;padding:4px 10px;font:12px 'JetBrains Mono',monospace}
   .chat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
   .chat h3{font-family:'Archivo Black',sans-serif;font-size:16px;margin:0 0 4px}
   .chat .sub{color:var(--muted);font-size:13px;margin:0 0 10px}
@@ -274,6 +301,7 @@
   <div class="grab"></div>
   <h3 id="shTitle"></h3>
   <div class="meta" id="shMeta"></div>
+  <div class="why" id="shWhy"></div>
   <div class="stage" id="stage"></div>
   <div class="row" id="shRow"></div>
 </div>
@@ -312,10 +340,15 @@ function renderBrief(src, entities = [], heat = []){
   const extras = `<div class="actions"><button class="ghost" type="button" id="copyBtn">Copy brief</button>${navigator.share ? '<button class="ghost" type="button" id="shareBtn">Share</button>' : ""}<button class="ghost" type="button" id="againBtn">Scout another brand</button></div>`;
   const proof = proofHtml();
   const chat = `<section class="chat" id="chat"><h3>${t("askH")}</h3><p class="sub">${t("askSub")}</p><div class="chips" id="askChips">${t("askEx").map((q) => `<button class="chip" type="button" data-q="${esc(q)}">${esc(q)}</button>`).join("")}</div><form class="row" id="askForm" style="margin-top:10px"><input id="askIn" maxlength="400" placeholder="${esc(t("askPh"))}" aria-label="${esc(t("askH"))}"><button class="send" id="askGo" type="submit">${t("askGo")}</button></form><div class="qa" id="qa"></div></section>`;
-  const ideaCard = `<section class="idea" id="ideaBox"><h3>${t("ideaH")}</h3><p class="sub">${t("ideaSub")}</p><div class="chips">${t("ideaEx").map((q) => `<button class="chip" type="button" data-idea="${esc(q)}">${esc(q)}</button>`).join("")}</div><form id="ideaForm"><input id="ideaIn" maxlength="80" placeholder="${esc(t("ideaPh"))}" aria-label="${esc(t("ideaH"))}"><button class="send" id="ideaGo" type="submit">${t("ideaGo")}</button></form><div id="ideaOut" aria-live="polite"></div></section>`;
-  $("#report").innerHTML = proof + '<div id="tickerSlot"></div>' + (cards || `<article class="sec">${body(src.split("\n"))}</article>`) + (tail.length ? `<p class="tools-used">${inline(tail.join(" "))}</p>` : "") + ideaCard + chat + extras;
-  $("#ideaForm").addEventListener("submit", (ev) => { ev.preventDefault(); testIdea($("#ideaIn").value); });
-  document.querySelectorAll("[data-idea]").forEach((b) => b.addEventListener("click", () => { $("#ideaIn").value = b.dataset.idea; testIdea(b.dataset.idea); }));
+  const ideaCard = `<section class="idea" id="ideaBox"><h3>${t("ideaH")}</h3><p class="sub">${t("ideaSub")}</p><div class="chips">${t("ideaEx").map((q) => `<button class="chip" type="button" data-idea="${esc(q)}">${esc(q)}</button>`).join("")}</div><form id="ideaForm"><input id="ideaIn" maxlength="80" placeholder="${esc(t("ideaPh"))}" aria-label="${esc(t("ideaH"))}"><button class="send" id="ideaGo" type="submit">${t("ideaGo")}</button></form><div class="pair" id="ideaPair" hidden><input id="ideaIn2" maxlength="80" placeholder="${esc(t("ideaPh2"))}" aria-label="${esc(t("ideaPh2"))}" style="flex:1;min-width:0;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);padding:12px;font:16px Inter,sans-serif;min-height:48px"></div><button class="vs" type="button" id="ideaVs">${t("ideaVs")}</button><div id="ideaOut" aria-live="polite"></div></section>`;
+  const cmpCard = `<section class="idea cmp" id="cmpBox"><h3>${t("cmpH")}</h3><p class="sub">${t("cmpSub")}</p><div class="chips">${["Supreme", "Carhartt WIP", "Nike"].map((q) => `<button class="chip" type="button" data-rival="${esc(q)}">${esc(q)}</button>`).join("")}</div><form id="cmpForm"><input id="cmpIn" maxlength="60" placeholder="${esc(t("cmpPh"))}" aria-label="${esc(t("cmpH"))}"><button class="send" id="cmpGo" type="submit">${t("cmpGo")}</button></form><div id="cmpOut" aria-live="polite"></div></section>`;
+  $("#report").innerHTML = proof + '<div id="tickerSlot"></div>' + (cards || `<article class="sec">${body(src.split("\n"))}</article>`) + (tail.length ? `<p class="tools-used">${inline(tail.join(" "))}</p>` : "") + ideaCard + cmpCard + chat + extras;
+  $("#ideaForm").addEventListener("submit", (ev) => { ev.preventDefault(); runIdeas(); });
+  $("#ideaIn2").addEventListener("keydown", (ev) => { if (ev.key === "Enter") { ev.preventDefault(); runIdeas(); } });
+  $("#ideaVs").addEventListener("click", () => { const p = $("#ideaPair"); p.hidden = !p.hidden; $("#ideaVs").textContent = p.hidden ? t("ideaVs") : t("ideaVsOff"); if (!p.hidden) { if (!$("#ideaIn2").value) $("#ideaIn2").value = t("ideaEx")[2]; $("#ideaIn2").focus(); } });
+  document.querySelectorAll("[data-idea]").forEach((b) => b.addEventListener("click", () => { $("#ideaIn").value = b.dataset.idea; runIdeas(); }));
+  $("#cmpForm").addEventListener("submit", (ev) => { ev.preventDefault(); compareRival($("#cmpIn").value); });
+  document.querySelectorAll("[data-rival]").forEach((b) => b.addEventListener("click", () => { $("#cmpIn").value = b.dataset.rival; compareRival(b.dataset.rival); }));
   $("#askForm").addEventListener("submit", (ev) => { ev.preventDefault(); ask($("#askIn").value); });
   document.querySelectorAll("#askChips [data-q]").forEach((b) => b.addEventListener("click", () => ask(b.dataset.q)));
   $("#copyBtn").onclick = async () => { try { await navigator.clipboard.writeText(lastReport); toast("Brief copied"); } catch { toast("Couldn't copy"); } };
@@ -399,7 +432,7 @@ function tilesFor(sec){
   return globe + `<div class="tiles">${picks.slice(0, 10).map((e) => `<button type="button" class="tile ${e.type}" data-i="${e.i}"${e.type === "place" && !e.image ? " data-wiki" : ""} aria-label="${esc(e.name)}"><span class="pic">${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">` : e.type === "place" ? PIN : EQ + `<span class="ini">${esc(initials(e.name))}</span>`}${e.type === "artist" ? '<span class="play">▶</span>' : ""}</span><span class="nm">${esc(e.name)}</span>${matchBadge(e)}</button>`).join("")}</div>`;
 }
 function imgFail(img){ const pic = img.parentNode; const e = ENT[+pic.parentNode.dataset.i]; img.remove(); pic.insertAdjacentHTML("afterbegin", EQ + `<span class="ini">${esc(initials(e ? e.name : "?"))}</span>`); }
-const TOOLNAME = { qloo_recommend: "Qloo recommendations", qloo_where_popular: "Qloo where-popular map", qloo_describe: "Qloo lookup", qloo_rank: "Qloo ranking" };
+const TOOLNAME = { qloo_recommend: "Qloo recommendations", qloo_where_popular: "Qloo where-popular map", qloo_describe: "Qloo lookup", qloo_rank: "Qloo ranking", qloo_idea: "Qloo idea score" };
 // ---- music previews (Apple's free iTunes Search API; 30s previews) + live visualizer ----
 const normName = (x) => String(x || "").toLowerCase().normalize("NFKD").replace(/[^a-z0-9]/g, "");
 async function findTrack(name){
@@ -528,12 +561,18 @@ const T = {
   en: { powered: "taste data by Qloo<br>agent by Gemini", h1: "Know who your<br>drop is <em>for.</em>", lede: "Describe your brand. Drop Scout's agent queries Qloo's taste graph to find the artists, brands and cities your audience already loves, then turns that into what to drop next and where to sell it.", pitch: "Big brands pay agencies for taste research. Independent brands get it here: two sentences in, a full launch plan out in about 30 seconds, with every name verified against Qloo's taste data.", label: "Your brand", go: "Scout my audience", demo: "⚡ See a real example: Smacked", ph: "Your brief shows up here as cards: audience, artists, brands, pop-up cities, event tie-ins and what to drop next. A scout takes under a minute.",
     verified: "Verified by Qloo:", names: "names", removedN: "unbacked removed", live: "live Qloo calls", plan: "Plan", seeds: "seeds", ticker: "TRENDING · 90 DAYS", board: "QLOO MATCH BOARD", retrying: "Google's AI is busy for a moment. Retrying automatically in 15 seconds…",
     stats: "<span>Tested on 20 brands</span><span><b>97.9%</b> of names confirmed by Qloo</span><span><b>21s</b> average scout</span>",
-    ideaH: "Test a product idea", ideaSub: "Qloo scores how well a new piece fits this audience before you make it.", ideaPh: "e.g. olive green tracksuit", ideaGo: "Score it", ideaEx: ["olive green tracksuit", "trucker hat", "puffer jacket"], ideaWait: "Asking Qloo how this audience feels about it…",
+    ideaH: "Test a product idea", ideaSub: "Qloo scores how well a new piece fits this audience before you make it.", ideaPh: "e.g. olive green tracksuit", ideaGo: "Score it", ideaEx: ["olive green tracksuit", "trucker hat", "puffer jacket"], ideaWait: "Asking Qloo how this audience feels about it…", ideaVs: "+ Compare two ideas", ideaVsOff: "− Score just one", ideaPh2: "vs. e.g. puffer jacket", ideaWin: "Better fit", ideaWhy: (x) => `Brands this audience already loves in the "${x}" lane:`,
+    cityH: (x) => `Best city for "${x}"`, cityWait: "Checking each pop-up city with Qloo…", citySum: (a, b) => `Strongest in ${a}, weakest in ${b}.`, cityNote: "same score, filtered to each city",
+    cmpH: "Compare me to a brand", cmpSub: "How much of a bigger brand's audience is already yours, and where you're different.", cmpPh: "e.g. Supreme", cmpGo: "Compare", cmpWait: (x) => `Comparing your audience with ${x}'s…`, cmpHead: (r, m, s) => (m != null ? `${r} is a ${m}% taste match for your fans; ${s}% of the artists they love overlap.` : `${s}% of the artists your fans and ${r} fans love overlap.`), cmpBoth: "Both love", cmpYours: "Only your fans", cmpTheirs: (r) => `Only ${r}`,
+    whyH: "Why this match:", whyWait: "Asking Qloo why…",
     askH: "Ask a follow-up", askSub: "The agent goes back to Qloo for new data.", askPh: "e.g. What about New York?", askGo: "Ask", askEx: ["What about New York?", "Who's rising right now?", "Cheaper drop ideas?"], thinking: "Asking Qloo…", used: "Qloo calls" },
   es: { powered: "datos de gusto: Qloo<br>agente: Gemini", h1: "Descubre para quién<br>es tu <em>drop.</em>", lede: "Describe tu marca. El agente de Drop Scout consulta el grafo de gustos de Qloo para encontrar los artistas, marcas y ciudades que tu audiencia ya ama, y lo convierte en qué lanzar después y dónde venderlo.", pitch: "Las grandes marcas pagan agencias para investigar gustos. Las marcas independientes lo tienen aquí: dos frases de entrada, un plan de lanzamiento completo en unos 30 segundos, con cada nombre verificado con los datos de Qloo.", label: "Tu marca", go: "Analizar mi audiencia", demo: "⚡ Ver un ejemplo real: Smacked", ph: "Tu informe aparece aquí en tarjetas: audiencia, artistas, marcas, ciudades para pop-ups, eventos y qué lanzar después. Tarda menos de un minuto.",
     verified: "Verificado por Qloo:", names: "nombres", removedN: "sin respaldo eliminados", live: "consultas en vivo a Qloo", plan: "Plan", seeds: "semillas", ticker: "TENDENCIAS · 90 DÍAS", board: "AFINIDAD QLOO", retrying: "La IA de Google está ocupada. Reintentando automáticamente en 15 segundos…",
     stats: "<span>Probado con 20 marcas</span><span><b>97.9%</b> de nombres confirmados por Qloo</span><span><b>21s</b> promedio por análisis</span>",
-    ideaH: "Prueba una idea de producto", ideaSub: "Qloo calcula qué tan bien encaja una pieza nueva con esta audiencia antes de fabricarla.", ideaPh: "ej. pants deportivos verde olivo", ideaGo: "Calificar", ideaEx: ["olive green tracksuit", "trucker hat", "puffer jacket"], ideaWait: "Preguntando a Qloo qué opina esta audiencia…",
+    ideaH: "Prueba una idea de producto", ideaSub: "Qloo calcula qué tan bien encaja una pieza nueva con esta audiencia antes de fabricarla.", ideaPh: "ej. pants deportivos verde olivo", ideaGo: "Calificar", ideaEx: ["olive green tracksuit", "trucker hat", "puffer jacket"], ideaWait: "Preguntando a Qloo qué opina esta audiencia…", ideaVs: "+ Comparar dos ideas", ideaVsOff: "− Solo una idea", ideaPh2: "vs. ej. puffer jacket", ideaWin: "Mejor opción", ideaWhy: (x) => `Marcas que esta audiencia ya ama en la línea "${x}":`,
+    cityH: (x) => `Mejor ciudad para "${x}"`, cityWait: "Revisando cada ciudad con Qloo…", citySum: (a, b) => `Más fuerte en ${a}, más débil en ${b}.`, cityNote: "mismo puntaje, filtrado por ciudad",
+    cmpH: "Compárame con una marca", cmpSub: "Cuánto de la audiencia de una marca grande ya es tuya, y en qué se diferencian.", cmpPh: "ej. Supreme", cmpGo: "Comparar", cmpWait: (x) => `Comparando tu audiencia con la de ${x}…`, cmpHead: (r, m, s) => (m != null ? `${r} tiene ${m}% de afinidad con tus fans; ${s}% de los artistas que aman coinciden.` : `${s}% de los artistas que aman tus fans y los de ${r} coinciden.`), cmpBoth: "Ambos aman", cmpYours: "Solo tus fans", cmpTheirs: (r) => `Solo ${r}`,
+    whyH: "Por qué coincide:", whyWait: "Preguntando a Qloo por qué…",
     askH: "Haz una pregunta", askSub: "El agente vuelve a Qloo por datos nuevos.", askPh: "ej. ¿Y en Nueva York?", askGo: "Preguntar", askEx: ["¿Y en Nueva York?", "¿Quién está subiendo ahora?", "¿Ideas de drop más baratas?"], thinking: "Consultando a Qloo…", used: "consultas a Qloo" },
 };
 let LANG = "en";
@@ -603,20 +642,61 @@ function audienceArtists(){
   const shown = ENT.filter((e) => e.type === "artist" && document.querySelector(`.tile.artist[data-i="${ENT.indexOf(e)}"]`));
   const seen = new Set(); return shown.filter((e) => !seen.has(e.name) && seen.add(e.name)).slice(0, 4).map((e) => ({ name: e.name, id: e.id }));
 }
-async function testIdea(idea){
-  idea = String(idea || "").trim(); if (idea.length < 3) return;
-  const out = $("#ideaOut"); const go = $("#ideaGo"); go.disabled = true;
+const postJSON = async (url, body) => { try { return await (await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })).json(); } catch { return { error: "Network error" }; } };
+const audienceBrands = () => { const seen = new Set(); return ENT.filter((e) => e.type === "brand" && e.tool !== "qloo_idea" && e.id && !seen.has(e.name) && seen.add(e.name)).slice(0, 3).map((e) => ({ name: e.name, id: e.id })); };
+const ringCls = (f) => (f >= 75 ? "" : f >= 55 ? "mid" : "low");
+const ring = (f) => `<div class="ring ${ringCls(f)}" style="--p:0" data-p="${f}"><b>${f}%</b></div>`;
+const spinRings = (el) => requestAnimationFrame(() => el.querySelectorAll(".ring[data-p]").forEach((r) => r.style.setProperty("--p", r.dataset.p)));
+const scoreOne = (idea) => postJSON("/api/idea", { idea, artists: audienceArtists() });
+function ideaTiles(d){
+  const start = ENT.length; const tiles = (d.matches || []).map((m) => ({ id: m.id, name: m.name, type: "brand", image: m.image, affinity: m.affinity, tool: "qloo_idea" }));
+  ENT.push(...tiles);
+  return tiles.length ? `<div class="tiles">${tiles.map((e, k) => `<button type="button" class="tile brand" data-i="${start + k}" aria-label="${esc(e.name)}"><span class="pic">${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">` : EQ + `<span class="ini">${esc(initials(e.name))}</span>`}</span><span class="nm">${esc(e.name)}</span>${matchBadge(e)}</button>`).join("")}</div>` : "";
+}
+async function runIdeas(){
+  const a = $("#ideaIn").value.trim(), b = $("#ideaPair").hidden ? "" : $("#ideaIn2").value.trim();
+  if (a.length < 3) return;
+  const out = $("#ideaOut"), go = $("#ideaGo"); go.disabled = true;
   out.innerHTML = `<p class="sub" style="margin-top:12px">${t("ideaWait")}</p>`;
-  let d; try { d = await (await fetch("/api/idea", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ idea, artists: audienceArtists() }) })).json(); } catch { d = { error: "Network error" }; }
+  const [d1, d2] = await Promise.all([scoreOne(a), b.length >= 3 ? scoreOne(b) : null]);
+  go.disabled = false;
+  const bad = (d) => !d || d.error || d.fit == null;
+  if (bad(d1) && (!d2 || bad(d2))) { out.innerHTML = `<p class="sub" style="margin-top:12px">${esc(d1.error || d1.verdict)}</p>`; return; }
+  let winner = d1;
+  if (d2) {
+    const side = (d, win) => `<div class="side${win ? " win" : ""}">${win ? `<span class="crown">${t("ideaWin")}</span>` : ""}${bad(d) ? `<div class="vd">${esc(d.error || d.verdict)}</div>` : ring(d.fit)}<div class="nm">${esc(d.idea || "")}</div>${bad(d) ? "" : `<div class="vd">${esc(d.verdict.split(":")[0])}</div>`}</div>`;
+    const s1 = bad(d1) ? -1 : d1.fit, s2 = bad(d2) ? -1 : d2.fit;
+    winner = s2 > s1 ? d2 : d1;
+    out.innerHTML = `<div class="h2h">${side(d1, s1 >= s2 && s1 >= 0)}${side(d2, s2 > s1)}</div><div class="idea-res"><div style="grid-column:1/-1" class="tg">${t("ideaWhy")(winner.idea)}</div>${ideaTiles(winner)}</div><div id="ideaCities"></div>`;
+  } else {
+    out.innerHTML = `<div class="idea-res">${ring(d1.fit)}<div><div class="v">${esc(d1.verdict)}</div><div class="tg">Qloo tags: ${esc((d1.tags || []).join(", "))} · ${(d1.steps || []).length} live Qloo calls</div></div>${ideaTiles(d1)}</div><div id="ideaCities"></div>`;
+  }
+  spinRings(out);
+  out.querySelectorAll(".tile").forEach((tl) => tl.addEventListener("click", () => openSheet(ENT[+tl.dataset.i])));
+  bestCity(winner.idea);
+}
+async function bestCity(idea){
+  const cities = (META.cities || []).map((c) => c.name).slice(0, 5);
+  const box = $("#ideaCities"); if (!box || cities.length < 2) return;
+  box.innerHTML = `<div class="cities"><h4>${t("cityH")(idea)}</h4><p class="sub">${t("cityWait")}</p></div>`;
+  const d = await postJSON("/api/idea-cities", { idea, artists: audienceArtists(), cities });
+  if (!$("#ideaCities") || d.error || !(d.cities || []).length) { if ($("#ideaCities")) $("#ideaCities").innerHTML = ""; return; }
+  const hi = d.cities[0].score, lo = d.cities[d.cities.length - 1].score, span = Math.max(0.0001, hi - lo);
+  const short = (c) => c.replace(/,.*$/, "");
+  $("#ideaCities").innerHTML = `<div class="cities"><h4>${t("cityH")(idea)}</h4><p class="sub" style="margin:0 0 6px">${t("citySum")(short(d.cities[0].city), short(d.cities[d.cities.length - 1].city))}</p>${d.cities.map((c, k) => `<div class="cbar${k === d.cities.length - 1 && d.cities.length > 1 ? " low" : ""}"><span>${esc(short(c.city))}</span><span class="tr"><i data-w="${Math.round(35 + 65 * (c.score - lo) / span)}"></i></span><b>${Math.round(c.score * 100)}</b></div>`).join("")}<div class="tg" style="font:12px 'JetBrains Mono',monospace;color:var(--muted)">${d.calls} live Qloo calls · ${t("cityNote")}</div></div>`;
+  requestAnimationFrame(() => $("#ideaCities").querySelectorAll("i[data-w]").forEach((i) => (i.style.width = i.dataset.w + "%")));
+}
+async function compareRival(name){
+  name = String(name || "").trim(); if (name.length < 2) return;
+  const out = $("#cmpOut"), go = $("#cmpGo"); go.disabled = true;
+  out.innerHTML = `<p class="sub" style="margin-top:12px">${t("cmpWait")(name)}</p>`;
+  const d = await postJSON("/api/compare", { rival: name, artists: audienceArtists(), brands: audienceBrands() });
   go.disabled = false;
   if (d.error) { out.innerHTML = `<p class="sub" style="margin-top:12px">${esc(d.error)}</p>`; return; }
-  if (d.fit == null) { out.innerHTML = `<p class="sub" style="margin-top:12px">${esc(d.verdict)}</p>`; return; }
-  const cls = d.fit >= 75 ? "" : d.fit >= 55 ? "mid" : "low";
-  const start = ENT.length; const tiles = (d.matches || []).map((m, k) => ({ name: m.name, type: "brand", image: m.image, affinity: m.affinity, tool: "qloo_recommend" }));
-  ENT.push(...tiles);
-  out.innerHTML = `<div class="idea-res"><div class="ring ${cls}" style="--p:0"><b>${d.fit}%</b></div><div><div class="v">${esc(d.verdict)}</div><div class="tg">Qloo tags: ${esc((d.tags || []).join(", "))} · ${(d.steps || []).length} live Qloo calls</div></div>${tiles.length ? `<div class="tiles">${tiles.map((e, k) => `<button type="button" class="tile brand" data-i="${start + k}" aria-label="${esc(e.name)}"><span class="pic">${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">` : EQ + `<span class="ini">${esc(initials(e.name))}</span>`}</span><span class="nm">${esc(e.name)}</span>${matchBadge(e)}</button>`).join("")}</div>` : ""}</div>`;
-  requestAnimationFrame(() => { const r = out.querySelector(".ring"); if (r) r.style.setProperty("--p", d.fit); });
-  out.querySelectorAll(".tile").forEach((tl) => tl.addEventListener("click", () => openSheet(ENT[+tl.dataset.i])));
+  const col = (h, xs) => `<div><h5>${h}</h5>${(xs || []).length ? xs.map((x) => `<p title="${esc(x.name)}">${esc(x.name)}</p>`).join("") : `<p>—</p>`}</div>`;
+  const score = d.match != null ? d.match : d.share;
+  out.innerHTML = `<div class="cmp-res"><div class="cmp-top">${score != null ? ring(score) : ""}<div><div class="v">${esc(t("cmpHead")(d.rival, d.match != null ? d.match : null, d.share))}</div><div class="tg">${d.calls} live Qloo calls · qloo_compare_audiences</div></div></div><div class="cmp-cols">${col(t("cmpBoth"), d.shared)}${col(t("cmpYours"), d.yours)}${col(t("cmpTheirs")(d.rival), d.theirs)}</div></div>`;
+  spinRings(out);
 }
 
 // ---- follow-up questions ----
@@ -646,11 +726,19 @@ function closeSheet(){
   if (audio) audio.pause(); $("#sheet").classList.remove("on"); $("#scrim").classList.remove("on"); setTimeout(() => { if (!$("#sheet").classList.contains("on")) $("#stage").innerHTML = ""; }, 300); }
 $("#scrim").addEventListener("click", closeSheet);
 document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeSheet(); });
+async function whyMatch(e){
+  if (!e.why) { $("#shWhy").innerHTML = `<em>${t("whyWait")}</em>`; e.why = await postJSON("/api/why", { id: e.id, name: e.name, type: e.type, artists: audienceArtists(), brands: audienceBrands() }); }
+  if ($("#shTitle").textContent !== e.name) return;
+  const w = e.why; if (!w || w.error || !(w.tags || []).length) { $("#shWhy").innerHTML = ""; return; }
+  $("#shWhy").innerHTML = `${t("whyH")} ${w.tags.map((x) => `<span>${esc(x)}</span>`).join("")}`;
+}
 async function openSheet(e){
   if (!e) return;
   $("#stage").classList.remove("text");
   $("#shTitle").textContent = e.name;
   $("#shMeta").textContent = `${e.type} · found by ${TOOLNAME[e.tool] || e.tool}`;
+  $("#shWhy").innerHTML = "";
+  if (e.type === "artist" || e.type === "brand") whyMatch(e);
   const bg = e.image ? `<img src="${esc(e.image)}" alt="" referrerpolicy="no-referrer">` : "";
   $("#shRow").innerHTML = '<button class="ghost" type="button" id="shClose">Close</button>';
   $("#shClose").onclick = closeSheet;
