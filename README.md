@@ -49,7 +49,12 @@ flowchart LR
 - **30-second music previews** come from Apple's public iTunes Search API, with an equalizer that reacts to the actual audio.
 - **Pop-up globe:** a 3D globe (MapLibre and OpenFreeMap) with Qloo's hot spots. Tap a dot to fly in and see the city, with a Wikipedia photo.
 - **Upcoming shows:** Ticketmaster's Discovery API lists concerts by the matched artists, ranked first if they fall in a Qloo hot spot. **Pitch a pop-up** drafts a vendor or merch-table request to the venue, using the Qloo match. The user copies and sends it; nothing is sent automatically.
-- **Follow-up questions** ("What about New York?") go back through the agent loop with Qloo tools.
+- **Test a product idea:** type "olive green tracksuit" and Qloo scores how well it fits this audience (0–100), with the brands your fans already love in that lane. The score is relative to the audience's favourite brands overall, so off-lane ideas really do score low (hoodie 98, trucker hat 81, puffer jacket 32, yoga pants 0 for the Smacked audience).
+- **Head-to-head:** score two ideas side by side; the better fit gets a badge.
+- **Best city for the idea:** the same score, weighted toward each pop-up city, ranks where to drop it first.
+- **Compare me to a brand:** type "Supreme" to see the taste match, the taste you share, where each audience leans (yours: Underground Rap; theirs: Street culture), and which artists each side plays.
+- **Why this match?** Tap any artist or brand to see the taste tags it shares with your audience.
+- **Follow-up questions** ("What about New York?") go back through the agent loop with Qloo tools, using Qloo entity IDs from the brief.
 - **Qloo match board:** a scrolling ticker of the brief's match scores.
 - **English / Spanish:** the page and the brief can switch to Spanish.
 
@@ -61,11 +66,14 @@ All Qloo access goes through the official **`qloo mcp`** server (`@qloo/qloo-har
 |---|---|
 | `qloo_find_tags` | turning genres and styles into Qloo tag URNs |
 | `qloo_describe` | resolving artist and brand names to Qloo entity IDs |
-| `qloo_recommend` | artists and brands this audience also likes; follow-up questions |
+| `qloo_recommend` | artists and brands this audience also likes; product-idea scores (with `include_tags`); city ranking (with `signal_location`); follow-up questions |
 | `qloo_where_popular` | geographic hot spots for pop-ups (the globe) |
 | `qloo_audience_demographics` | aggregate age and gender affinities |
-| `qloo_rank` | the self-check that drops weak fits |
+| `qloo_rank` | the self-check that drops weak fits; the match % in "Compare me to a brand" |
+| `qloo_compare_audiences` | shared vs. distinct taste in "Compare me to a brand" and the "Why this match?" tags |
 | `qloo_trends` | wired up for the ticker; the hackathon dataset returned no trend points, so the ticker shows match scores instead |
+
+We also tried `qloo_entity_tags` for "Why this match?", but it returned non-taste tags (ratings, venue types and demographic labels), so we use `compare_audiences` instead and filter out any demographic tag before display.
 
 ## Run it locally
 
@@ -88,7 +96,8 @@ Optional settings: `GEMINI_MODEL` (default `gemini-flash-latest`), `GEMINI_FALLB
 
 ## Reliability
 
-- Qloo calls in the same step run in parallel.
+- Qloo calls in the same step run in parallel, at most two at a time for the extra features, and a "too many requests" reply is retried automatically.
+- When Qloo can't resolve an input it returns candidates; the server retries once with Qloo's top candidate.
 - Gemini "thinking" is turned down for speed.
 - Busy or slow Gemini models are skipped for a few minutes. If every model is busy, the server waits and tries once more, and the page retries once automatically.
 - Results are cached for 6 hours per brand description.

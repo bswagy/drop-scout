@@ -542,11 +542,12 @@ async function ideaCities({ idea, artists = [], cities = [] }) {
   const tagIds = (tagEnv.results || []).map(idOf).filter((x) => typeof x === "string" && x.startsWith("urn:tag")).slice(0, 2);
   if (!tagIds.length) throw new PublicError("Qloo has no taste data for that idea.");
   const rows = await pairwise(list, async (city) => {
-    const env = await callQlooFixed("qloo_recommend", { target_type: "brand", signals: ar, include_tags: tagIds, include_tags_operator: "union", filter_location: city, limit: 6 });
+    const env = await callQlooFixed("qloo_recommend", { target_type: "brand", signals: ar, include_tags: tagIds, include_tags_operator: "union", signal_location: city, limit: 6 });
     const s = top3((env.results || []).map(affOf));
     return { city, score: s == null ? null : Math.round(s * 1000) / 1000, top: nameOf((env.results || [])[0]), status: env.status };
   });
   const ok = rows.filter((r) => r.score != null).sort((a, b) => b.score - a.score);
+  if (ok.length < 2 || ok[0].score - ok[ok.length - 1].score < 0.003) { console.log(`[idea-cities] "${text}" no city difference:`, rows.map((r) => r.city + " " + r.score + " " + r.status).join(", ")); throw new PublicError("Qloo shows no city difference for this idea."); }
   const out = { idea: text, cities: ok, calls: rows.length + 1 };
   if (ok.length >= 2) ideaCityCache.set(key, out);
   console.log(`[idea-cities] "${text}" -> ${ok.map((r) => r.city + " " + r.score).join(", ")}`);
