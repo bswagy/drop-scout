@@ -527,7 +527,7 @@ const GENERIC_TAG = /^(urban|casual|confidence|artistic pursuits|trendy|creative
 const specificTags = (list, max, prefer) => tasteTags(list, 12, prefer).filter((n) => !GENERIC_TAG.test(n)).slice(0, max);
 // A fixed panel of well-known brands across categories. The rival is ranked inside this panel for your audience,
 // so the % says how it compares to other brands, not just "Qloo likes it" (raw affinities are all ~0.9+).
-const PANEL = ["Nike", "Supreme", "Carhartt WIP", "Vans", "Patagonia", "Lululemon", "Gucci", "Old Navy", "Coach", "Ralph Lauren"];
+const PANEL = ["Nike", "Supreme", "Carhartt", "Vans", "Patagonia", "Lululemon", "Gucci", "Old Navy", "Coach", "Ralph Lauren"];
 async function panelIds() { const out = []; for (const n of PANEL) { const id = await resolveName(n, "brand"); if (id) out.push({ name: n, id }); } return out; }
 async function compareTags(groupA, groupB) {
   const env = await callQlooFixed("qloo_compare_audiences", { group_a: groupA, group_b: groupB, limit: 10 });
@@ -617,9 +617,11 @@ async function whyMatch({ id, name, type, artists = [], brands = [] }) {
   if (whyCache.has(key)) return whyCache.get(key);
   const cmp = await compareTags([eid], aud);
   const prefer = t === "artist" ? /genre:music/ : /personal_style|genre:brand|lifestyle/;
-  let tags = specificTags(cmp.both, 3, prefer);
-  if (tags.length < 2) tags = [...tags, ...tasteTags(cmp.both, 3, prefer).filter((x) => !tags.includes(x))].slice(0, 3);
-  const known = specificTags(cmp.a, 2, prefer).filter((x) => !tags.includes(x));
+  // a = this entity's own top tags, b = the audience's. The reason it matches = its own tags that the audience also has.
+  const own = specificTags(cmp.a, 8, prefer), audTags = new Set(specificTags(cmp.b, 12, prefer).map((x) => x.toLowerCase()));
+  let tags = [...own.filter((x) => audTags.has(x.toLowerCase())), ...own.filter((x) => !audTags.has(x.toLowerCase()))].slice(0, 3);
+  if (tags.length < 2) tags = [...tags, ...specificTags(cmp.both, 3, prefer).filter((x) => !tags.includes(x))].slice(0, 3);
+  const known = [];
   const out = { name: nameById.get(eid) || name, tags, known, calls: 1 };
   if (tags.length) whyCache.set(key, out);
   return out;
