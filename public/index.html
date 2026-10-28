@@ -289,7 +289,7 @@
 
   <h1 data-i18n="h1">Know who your<br>drop is <em>for.</em></h1>
   <p class="lede" data-i18n="lede">Describe your brand. Drop Scout's agent queries Qloo's taste graph to find the artists, brands and cities your audience already loves, then turns that into what to drop next and where to sell it.</p>
-  <p class="pitchline" data-i18n="pitch">Big brands pay agencies for taste research. Independent brands get it here: two sentences in, a full launch plan out in about 30 seconds, with every name verified against Qloo's taste data.</p>
+  <p class="pitchline" data-i18n="pitch">Big brands pay agencies for taste research. Independent brands get it here: two sentences in, a full launch plan out in about 20 seconds, with every name verified against Qloo's taste data.</p>
   <p class="stats" data-i18n="stats"><span>Tested on 20 brands</span><span><b>97.9%</b> of names confirmed by Qloo</span><span><b>21s</b> average scout</span></p>
 
   <form id="f">
@@ -311,7 +311,7 @@
   </section>
 
   <div class="results">
-    <div class="brief" id="report"><div class="placeholder" data-i18n="ph">Your brief shows up here as cards: audience, artists, brands, pop-up cities, event tie-ins and what to drop next. A scout takes under a minute.</div></div>
+    <div class="brief" id="report"><div class="placeholder" data-i18n="ph">Your brief shows up here as cards: audience, artists, brands, pop-up cities, event tie-ins and what to drop next. A scout takes about 20 seconds.</div></div>
     <details class="trail" id="trail">
       <summary><span>Evidence trail <span id="trailCount"></span></span></summary>
       <div class="trail-body" id="steps"><p class="empty">Every Qloo call the agent makes is listed here, so you can see where each claim comes from.</p></div>
@@ -588,7 +588,7 @@ function addShowsToGlobe(){
 
 // ---- language ----
 const T = {
-  en: { powered: "taste data by Qloo<br>agent by Gemini", h1: "Know who your<br>drop is <em>for.</em>", lede: "Describe your brand. Drop Scout's agent queries Qloo's taste graph to find the artists, brands and cities your audience already loves, then turns that into what to drop next and where to sell it.", pitch: "Big brands pay agencies for taste research. Independent brands get it here: two sentences in, a full launch plan out in about 30 seconds, with every name verified against Qloo's taste data.", label: "Your brand", go: "Scout my audience", demo: "⚡ See a real example: Smacked", ph: "Your brief shows up here as cards: audience, artists, brands, pop-up cities, event tie-ins and what to drop next. A scout takes under a minute.",
+  en: { powered: "taste data by Qloo<br>agent by Gemini", h1: "Know who your<br>drop is <em>for.</em>", lede: "Describe your brand. Drop Scout's agent queries Qloo's taste graph to find the artists, brands and cities your audience already loves, then turns that into what to drop next and where to sell it.", pitch: "Big brands pay agencies for taste research. Independent brands get it here: two sentences in, a full launch plan out in about 20 seconds, with every name verified against Qloo's taste data.", label: "Your brand", go: "Scout my audience", demo: "⚡ See a real example: Smacked", ph: "Your brief shows up here as cards: audience, artists, brands, pop-up cities, event tie-ins and what to drop next. A scout takes about 20 seconds.",
     verified: "Verified by Qloo:", names: "names", removedN: "unbacked removed", live: "live Qloo calls", plan: "Plan", seeds: "seeds", ticker: "TRENDING · 90 DAYS", board: "QLOO MATCH BOARD", retrying: "Google's AI is busy for a moment. Retrying automatically in 15 seconds…",
     stats: "<span>Tested on 20 brands</span><span><b>97.9%</b> of names confirmed by Qloo</span><span><b>21s</b> average scout</span>",
     ideaH: "Test a product idea", ideaSub: "Qloo scores how well a new piece fits this audience before you make it.", ideaPh: "e.g. olive green tracksuit", ideaGo: "Score it", ideaEx: ["olive green tracksuit", "trucker hat", "puffer jacket"], ideaWait: "Asking Qloo how this audience feels about it…", ideaVs: "+ Compare two ideas", ideaVsOff: "− Score just one", ideaPh2: "vs. e.g. puffer jacket", ideaWin: "Better fit", ideaWhy: (x) => `Brands this audience already loves in the "${x}" lane:`,
@@ -597,7 +597,7 @@ const T = {
     savedCalls: "Qloo calls · saved run", qTags: "Qloo tags:", matchW: "match", newW: "new", whyH: "Why this match:", whyWait: "Asking Qloo why…", whyKnown: "· known for", cityClose: (a) => `A small lean toward ${a}; all these cities are close, so any of them works.`,
     jumpLbl: "Jump to", jBrief: "Brief", jIdea: "Test an idea", jCmp: "Compare", jAsk: "Ask", jShows: "Shows & map", jNone: "Not in this brief",
     askH: "Ask a follow-up", askSub: "The agent goes back to Qloo for new data.", askPh: "e.g. What about New York?", askGo: "Ask", askEx: ["What about New York?", "Who's rising right now?", "Cheaper drop ideas?"], thinking: "Asking Qloo…", used: "Qloo calls" },
-  es: { powered: "datos de gusto: Qloo<br>agente: Gemini", h1: "Descubre para quién<br>es tu <em>drop.</em>", lede: "Describe tu marca. El agente de Drop Scout consulta el grafo de gustos de Qloo para encontrar los artistas, marcas y ciudades que tu audiencia ya ama, y lo convierte en qué lanzar después y dónde venderlo.", pitch: "Las grandes marcas pagan agencias para investigar gustos. Las marcas independientes lo tienen aquí: dos frases de entrada, un plan de lanzamiento completo en unos 30 segundos, con cada nombre verificado con los datos de Qloo.", label: "Tu marca", go: "Analizar mi audiencia", demo: "⚡ Ver un ejemplo real: Smacked", ph: "Tu informe aparece aquí en tarjetas: audiencia, artistas, marcas, ciudades para pop-ups, eventos y qué lanzar después. Tarda menos de un minuto.",
+  es: { powered: "datos de gusto: Qloo<br>agente: Gemini", h1: "Descubre para quién<br>es tu <em>drop.</em>", lede: "Describe tu marca. El agente de Drop Scout consulta el grafo de gustos de Qloo para encontrar los artistas, marcas y ciudades que tu audiencia ya ama, y lo convierte en qué lanzar después y dónde venderlo.", pitch: "Las grandes marcas pagan agencias para investigar gustos. Las marcas independientes lo tienen aquí: dos frases de entrada, un plan de lanzamiento completo en unos 20 segundos, con cada nombre verificado con los datos de Qloo.", label: "Tu marca", go: "Analizar mi audiencia", demo: "⚡ Ver un ejemplo real: Smacked", ph: "Tu informe aparece aquí en tarjetas: audiencia, artistas, marcas, ciudades para pop-ups, eventos y qué lanzar después. Tarda unos 20 segundos.",
     verified: "Verificado por Qloo:", names: "nombres", removedN: "sin respaldo eliminados", live: "consultas en vivo a Qloo", plan: "Plan", seeds: "semillas", ticker: "TENDENCIAS · 90 DÍAS", board: "AFINIDAD QLOO", retrying: "La IA de Google está ocupada. Reintentando automáticamente en 15 segundos…",
     stats: "<span>Probado con 20 marcas</span><span><b>97.9%</b> de nombres confirmados por Qloo</span><span><b>21s</b> promedio por análisis</span>",
     ideaH: "Prueba una idea de producto", ideaSub: "Qloo calcula qué tan bien encaja una pieza nueva con esta audiencia antes de fabricarla.", ideaPh: "ej. pants deportivos verde olivo", ideaGo: "Calificar", ideaEx: ["olive green tracksuit", "trucker hat", "puffer jacket"], ideaWait: "Preguntando a Qloo qué opina esta audiencia…", ideaVs: "+ Comparar dos ideas", ideaVsOff: "− Solo una idea", ideaPh2: "vs. ej. puffer jacket", ideaWin: "Mejor opción", ideaWhy: (x) => `Marcas que esta audiencia ya ama en la línea "${x}":`,
@@ -821,7 +821,7 @@ function renderTrail(steps){
   $("#trailCount").textContent = steps.length ? `· ${steps.length} Qloo calls` : "";
   $("#steps").innerHTML = steps.length ? steps.map((s, i) => {
     const cls = s.status === "ok" ? "ok" : "warn";
-    return `<div class="step"><b>${i + 1}. ${esc(s.tool)}<span class="badge ${cls}">${esc(s.status)}${s.count ? " · " + esc(s.count) : ""}</span></b><span class="s">${esc(argText(s.args)).slice(0, 220)}</span></div>`;
+    return `<div class="step"><b>${i + 1}. ${esc(s.tool)}<span class="badge ${cls}">${esc(s.status)}${s.count ? " · " + esc(s.count) : ""}</span></b><span class="s">${esc(argText(s.args).slice(0, 200) + (argText(s.args).length > 200 ? "…" : ""))}</span></div>`;
   }).join("") : '<p class="empty">No Qloo calls were made.</p>';
 }
 
