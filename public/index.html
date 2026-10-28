@@ -611,7 +611,7 @@ async function testIdea(idea){
   go.disabled = false;
   if (d.error) { out.innerHTML = `<p class="sub" style="margin-top:12px">${esc(d.error)}</p>`; return; }
   if (d.fit == null) { out.innerHTML = `<p class="sub" style="margin-top:12px">${esc(d.verdict)}</p>`; return; }
-  const cls = d.fit >= 80 ? "" : d.fit >= 65 ? "mid" : "low";
+  const cls = d.fit >= 75 ? "" : d.fit >= 55 ? "mid" : "low";
   const start = ENT.length; const tiles = (d.matches || []).map((m, k) => ({ name: m.name, type: "brand", image: m.image, affinity: m.affinity, tool: "qloo_recommend" }));
   ENT.push(...tiles);
   out.innerHTML = `<div class="idea-res"><div class="ring ${cls}" style="--p:0"><b>${d.fit}%</b></div><div><div class="v">${esc(d.verdict)}</div><div class="tg">Qloo tags: ${esc((d.tags || []).join(", "))} · ${(d.steps || []).length} live Qloo calls</div></div>${tiles.length ? `<div class="tiles">${tiles.map((e, k) => `<button type="button" class="tile brand" data-i="${start + k}" aria-label="${esc(e.name)}"><span class="pic">${e.image ? `<img src="${esc(e.image)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="imgFail(this)">` : EQ + `<span class="ini">${esc(initials(e.name))}</span>`}</span><span class="nm">${esc(e.name)}</span>${matchBadge(e)}</button>`).join("")}</div>` : ""}</div>`;
