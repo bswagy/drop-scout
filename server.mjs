@@ -522,6 +522,13 @@ function tasteTags(list, max = 3, prefer = null) {
   const sorted = prefer ? [...ok.filter((t) => prefer.test(t.subtype)), ...ok.filter((t) => !prefer.test(t.subtype))] : ok;
   return sorted.map(tagLabel).filter((n) => n && !seen.has(n.toLowerCase()) && seen.add(n.toLowerCase())).slice(0, max);
 }
+// Tags so broad they describe almost any streetwear brand; not useful as an explanation.
+const GENERIC_TAG = /^(urban|casual|confidence|artistic pursuits|trendy|creatives|diversity|style|cool|youth culture|fashion|modern|stylish|quality)$/i;
+const specificTags = (list, max, prefer) => tasteTags(list, 12, prefer).filter((n) => !GENERIC_TAG.test(n)).slice(0, max);
+// A fixed panel of well-known brands across categories. The rival is ranked inside this panel for your audience,
+// so the % says how it compares to other brands, not just "Qloo likes it" (raw affinities are all ~0.9+).
+const PANEL = ["Nike", "Supreme", "Carhartt WIP", "Vans", "Patagonia", "Lululemon", "Gucci", "Old Navy", "Coach", "Ralph Lauren"];
+async function panelIds() { const out = []; for (const n of PANEL) { const id = await resolveName(n, "brand"); if (id) out.push({ name: n, id }); } return out; }
 async function compareTags(groupA, groupB) {
   const env = await callQlooFixed("qloo_compare_audiences", { group_a: groupA, group_b: groupB, limit: 10 });
   const r = env.results && !Array.isArray(env.results) ? env.results : {};
@@ -566,16 +573,26 @@ async function compareBrand({ rival, artists = [], brands = [] }) {
   const mine = [...ar, ...br.filter((x) => x !== rid)].slice(0, 6);
   const key = rid + "|" + mine.join(",");
   if (compareCache.has(key)) return compareCache.get(key);
-  const [cmp, rank] = await Promise.all([compareTags(mine, [rid]), callQlooFixed("qloo_rank", { options: [rid], option_type: "brand", signals: ar })]);
+  const panel = (await panelIds()).filter((p) => p.id !== rid);
+  const [cmp, rank] = await Promise.all([compareTags(mine, [rid]), callQlooFixed("qloo_rank", { options: [rid, ...panel.map((p) => p.id)], option_type: "brand", signals: ar })]);
   const [recMine, recRival] = await Promise.all([callQlooFixed("qloo_recommend", { target_type: "artist", signals: ar, limit: 20 }), callQlooFixed("qloo_recommend", { target_type: "artist", signals: [rid], limit: 20 })]);
   const list = (env) => (env.results || []).map((r) => ({ name: nameOf(r), id: idOf(r), affinity: affOf(r) })).filter((x) => x.name);
   const m = list(recMine), r = list(recRival);
   const rn = new Set(r.map((x) => norm(x.name))), mn = new Set(m.map((x) => norm(x.name)));
-  const rk = (rank.results || [])[0];
+  // Rank the rival inside the panel; score = where it sits between the panel's weakest and strongest fit.
+  const ranked = (rank.results || []).map((x) => ({ id: idOf(x), name: nameOf(x), a: affOf(x) })).filter((x) => Number.isFinite(x.a)).sort((a, b) => b.a - a.a);
+  const pos = ranked.findIndex((x) => x.id === rid || norm(x.name) === norm(nameById.get(rid) || name));
+  let match = null, place = null;
+  if (pos >= 0 && ranked.length >= 4) {
+    const hi = ranked[0].a, lo = ranked[ranked.length - 1].a;
+    match = Math.round(100 * (ranked[pos].a - lo) / Math.max(1e-6, hi - lo));
+    place = { rank: pos + 1, of: ranked.length, above: ranked.slice(pos + 1, pos + 3).map((x) => x.name), below: ranked.slice(Math.max(0, pos - 2), pos).map((x) => x.name) };
+  }
+  console.log(`[compare] ${name}: #${pos + 1}/${ranked.length}`, ranked.map((x) => `${x.name} ${x.a.toFixed(3)}`).join(", "));
   const out = {
-    rival: nameById.get(rid) || name,
-    match: rk && Number.isFinite(affOf(rk)) ? Math.round(affOf(rk) * 100) : null,
-    both: tasteTags(cmp.both, 3), yours: tasteTags(cmp.a, 3, /genre:music|personal_style/), theirs: tasteTags(cmp.b, 3, /genre:music|personal_style|lifestyle/),
+    rival: nameById.get(rid) || name, match, place,
+    both: specificTags(cmp.both, 3).length ? specificTags(cmp.both, 3) : tasteTags(cmp.both, 3),
+    yours: tasteTags(cmp.a, 3, /genre:music|personal_style/), theirs: tasteTags(cmp.b, 3, /genre:music|personal_style|lifestyle/),
     sharedArtists: m.filter((x) => rn.has(norm(x.name))).slice(0, 3).map((x) => x.name),
     yourArtists: m.filter((x) => !rn.has(norm(x.name))).slice(0, 3).map((x) => x.name),
     theirArtists: r.filter((x) => !mn.has(norm(x.name))).slice(0, 3).map((x) => x.name),
@@ -599,8 +616,11 @@ async function whyMatch({ id, name, type, artists = [], brands = [] }) {
   const key = eid + "|" + aud.join(",");
   if (whyCache.has(key)) return whyCache.get(key);
   const cmp = await compareTags([eid], aud);
-  const tags = tasteTags(cmp.both, 3, t === "artist" ? /genre:music/ : /personal_style|lifestyle|genre:brand/);
-  const out = { name: nameById.get(eid) || name, tags, calls: 1 };
+  const prefer = t === "artist" ? /genre:music/ : /personal_style|genre:brand|lifestyle/;
+  let tags = specificTags(cmp.both, 3, prefer);
+  if (tags.length < 2) tags = [...tags, ...tasteTags(cmp.both, 3, prefer).filter((x) => !tags.includes(x))].slice(0, 3);
+  const known = specificTags(cmp.a, 2, prefer).filter((x) => !tags.includes(x));
+  const out = { name: nameById.get(eid) || name, tags, known, calls: 1 };
   if (tags.length) whyCache.set(key, out);
   return out;
 }
@@ -989,5 +1009,7 @@ if (process.argv.includes("--check")) {
 
 await connectQloo().catch((e) => console.error("Could not start qloo mcp yet:", e.message));
 server.listen(PORT, () => console.log(`Drop Scout on http://localhost:${PORT}`));
+// Resolve the comparison panel in the background so the first "Compare" is fast.
+setTimeout(() => panelIds().then((p) => console.log(`[panel] ${p.length} brands resolved`)).catch(() => {}), 5_000).unref();
 // Keep-warm: Render's free tier sleeps after ~15 min without traffic; a ping through the public URL keeps demo day snappy.
 if (process.env.RENDER_EXTERNAL_URL) setInterval(() => { fetch(process.env.RENDER_EXTERNAL_URL + "/api/health").catch(() => {}); }, 10 * 60_000).unref();
