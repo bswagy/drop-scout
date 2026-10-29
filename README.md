@@ -1,5 +1,17 @@
 # Drop Scout
 
+<p align="center">
+  <img src="public/og.png" alt="Drop Scout — a Qloo-powered agent for small streetwear brands" width="680">
+</p>
+
+<p align="center">
+  <a href="https://drop-scout.onrender.com"><b>Live demo</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://youtu.be/-ZwaIE3aZsQ"><b>Demo video</b></a>
+  &nbsp;·&nbsp;
+  <a href="https://devpost.com/software/drop-scout"><b>Devpost</b></a>
+</p>
+
 **Know who your drop is for.** Drop Scout is an AI agent for small streetwear and merch brands. Describe your brand in two sentences and, in about 20 seconds, it uses Qloo's taste graph to tell you which artists and brands your audience already loves, which cities to pop up in, which upcoming shows to set up next to, and what to drop next. Every name in the brief is checked against Qloo's data before you see it.
 
 Live: **https://drop-scout.onrender.com**. Tap **⚡ See a real example: Smacked** for a saved real run that loads in 2 seconds.
